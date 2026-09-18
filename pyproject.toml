@@ -1,0 +1,34 @@
+[build-system]
+requires=["setuptools"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "hand-rl"
+version = "0.1.0"
+description = "Rice Robotics Hand Command"
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+  "numpy",
+  "torch",
+  "torchvision",
+  "pyyaml",
+  "tensorboard>=2.20.0",
+  "jsonschema",
+  "jsonschema-gentypes",
+  "tensordict",
+  "pygame",
+  "genesis-world @ git+https://github.com/Genesis-Embodied-AI/Genesis.git",
+  "rsl-rl-lib==5.*",
+  "cowsay>=6.1",
+  "lolcat>=1.4",
+]
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[dependency-groups]
+dev = [
+    "basedpyright>=1.40.1",
+    "ruff>=0.16.8",
+]

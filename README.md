@@ -51,6 +51,20 @@ python -m pip install -r requirements.txt
 python midi_to_notes.py song.mid --no-octave -o notes.json
 ```
 
+MP3 and WAV inputs are automatically transcribed to MIDI in memory before
+extracting notes. On Windows, use a separate Python 3.10 environment for
+Basic Pitch's ONNX backend. This avoids conflicts with the main project's
+Python environment and any globally installed TensorFlow/NumPy packages:
+
+```sh
+uv venv --python 3.10 .venv-audio
+uv pip install --python .venv-audio/Scripts/python.exe -r requirements-audio.txt
+.venv-audio/Scripts/python.exe midi_to_notes.py song.wav --tuples -o notes.json
+```
+
+Audio transcription is approximate. MIDI inputs skip transcription and do not
+require Basic Pitch. No intermediate MIDI file is written.
+
 Example output:
 
 ```json
@@ -74,10 +88,70 @@ notes = midi_to_notes("song.mid", include_octave=False)
 names = [entry["note"] for entry in notes]
 ```
 
+For a list of `(start_seconds, duration_seconds, MIDI_pitch)` tuples:
+
+```python
+from midi_to_notes import midi_to_note_tuples
+
+notes = midi_to_note_tuples("song.mid")
+# Example: [(0.0, 0.5, 69), (0.5, 0.25, 72), (0.75, 0.25, 71)]
+```
+
+Pitch is a MIDI note number (60 = C4, 69 = A4). Use `--tuples` on the command
+line for the same triples as JSON arrays (JSON has no tuple type).
+MP3 and WAV inputs work with this format too. `--no-octave` only affects named
+output; tuple pitches always retain their full MIDI note number.
+
+Tuples are sorted by start time and preserve timing for rests and overlapping
+notes. Two notes overlap when
+`max(start_a, start_b) < min(start_a + duration_a, start_b + duration_b)`.
+Notes that start exactly when another ends do not overlap.
+
 All non-drum instruments are combined. Chord notes share a timestamp and remain
 separate entries; repeated notes are preserved. Durations run from note-on to
 note-off (key release), without extending for the sustain pedal. Tempo changes
 are handled by [pretty_midi](https://github.com/craffel/pretty-midi).
+
+### Sheet-music image converter
+
+`sheet_music_to_notes.py` uses [Audiveris](https://audiveris.github.io/audiveris/_pages/tutorials/install/binaries/)
+to recognize printed sheet music in JPG/JPEG/PNG images. Install Audiveris
+separately and add its executable to PATH, or pass its full path with
+`--audiveris`. Then install the Python dependencies and run:
+
+```sh
+python -m pip install -r requirements-sheet.txt
+python sheet_music_to_notes.py sheet.png --bpm 120 -o sheet.notes.json
+```
+
+This converter focuses on right-hand piano music: it takes notes from the first
+(upper) staff and excludes notes from the lower staff. Single-staff scores are
+kept intact. This assumes conventional piano staff order, not an ensemble score.
+It does not infer hands when both hands share one staff or use cross-staff
+notation, and it does not check whether a chord is physically reachable by one
+hand. No pitch cutoff is applied, so low right-hand notes are preserved.
+
+It returns `(start_seconds, duration_seconds, MIDI_pitch)` tuples in Python
+(JSON arrays in the command-line output), matching the MIDI converter:
+
+```python
+from sheet_music_to_notes import sheet_music_to_notes
+
+notes = sheet_music_to_notes("sheet.jpg", bpm=120)
+# Example: [(0.0, 0.5, 60), (0.0, 0.5, 64), (0.5, 1.0, 67)]
+```
+
+Recognized tempos and tempo changes control timing. `--bpm` supplies a fallback
+when there is no recognized opening tempo, rather than overriding written tempos.
+Chords stay as separate simultaneous notes, ties join held notes, and rests
+create gaps in the timeline. Recognized repeats are expanded by the MIDI exporter.
+
+Use a clear, straight image of one printed score. Recognition can miss or
+misread notes, accidentals, rhythms, or tempo marks; photos and handwriting are
+less reliable. Inspect and correct recognition in Audiveris when needed, then
+export MusicXML and run `python sheet_music_to_notes.py corrected.mxl --musicxml`.
+The image path uses temporary recognition files and does not save a reviewable
+Audiveris project. Increase `--timeout` from its default 300 seconds for slow scans.
 
 # Overall Goals / Timeline
 

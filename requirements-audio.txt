@@ -1,0 +1,6 @@
+# Use Python 3.10 on Windows for Basic Pitch's ONNX backend.
+-r requirements.txt
+basic-pitch[onnx]==0.4.0
+numpy>=1.23.5,<2
+# resampy 0.4.2 imports pkg_resources, removed by newer setuptools releases.
+setuptools<81

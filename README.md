@@ -153,6 +153,34 @@ export MusicXML and run `python sheet_music_to_notes.py corrected.mxl --musicxml
 The image path uses temporary recognition files and does not save a reviewable
 Audiveris project. Increase `--timeout` from its default 300 seconds for slow scans.
 
+### Note sequences to finger actions
+
+`notes_to_fingers.py` assigns note tuples from either converter to a stationary
+right hand. Finger numbers are 1=thumb, 2=index, 3=middle, 4=ring, 5=pinky.
+The default starting position is raised above C4, D4, E4, F4, G4 respectively.
+
+```powershell
+.venv-audio/Scripts/python.exe notes_to_fingers.py samples/right_hand/expected.notes.json -o robot_finger_movement_plan.json
+```
+
+The JSON includes `starting_position`, finger assignments in `notes`, and timed
+`events`. Each event contains simultaneous `release` and `press` lists. Apply
+releases first, then presses at that timestamp. Chords use several fingers at
+once; held notes stay down until their own release, and rests produce no presses.
+The generated exercise's final chord uses thumb, middle, and pinky from 6–8 seconds.
+
+Use `--keys 72 74 76 77 79` for a C5–G5 starting position, or specify another set
+of five ascending MIDI pitches. This only configures the key assignment; it does
+not verify the physical reach of the chosen position. Notes outside the five
+keys and overlapping presses of the same key are rejected.
+
+These are **finger/key targets, not motor commands**. The robot controller still
+needs key coordinates, joint geometry, travel times, and control over pressing
+and releasing. Timestamps specify when the key should sound, so physical motion
+must begin early enough to meet them. Adjacent repeated notes may require more
+release/repress time than this idealized schedule allows. Wrist movement and
+automatic fingering across a wider keyboard are not implemented yet.
+
 # Overall Goals / Timeline
 
 # Pure Simulation goals:

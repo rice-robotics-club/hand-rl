@@ -1,0 +1,295 @@
+{
+  "mode": "stationary_right_hand",
+  "time_unit": "seconds",
+  "starting_position": [
+    {
+      "finger": 1,
+      "name": "thumb",
+      "pitch": 60,
+      "state": "raised"
+    },
+    {
+      "finger": 2,
+      "name": "index",
+      "pitch": 62,
+      "state": "raised"
+    },
+    {
+      "finger": 3,
+      "name": "middle",
+      "pitch": 64,
+      "state": "raised"
+    },
+    {
+      "finger": 4,
+      "name": "ring",
+      "pitch": 65,
+      "state": "raised"
+    },
+    {
+      "finger": 5,
+      "name": "pinky",
+      "pitch": 67,
+      "state": "raised"
+    }
+  ],
+  "notes": [
+    {
+      "start": 0.0,
+      "duration": 0.5,
+      "pitch": 60,
+      "finger": 1
+    },
+    {
+      "start": 0.5,
+      "duration": 0.5,
+      "pitch": 62,
+      "finger": 2
+    },
+    {
+      "start": 1.0,
+      "duration": 0.5,
+      "pitch": 64,
+      "finger": 3
+    },
+    {
+      "start": 1.5,
+      "duration": 0.5,
+      "pitch": 65,
+      "finger": 4
+    },
+    {
+      "start": 2.0,
+      "duration": 1.0,
+      "pitch": 67,
+      "finger": 5
+    },
+    {
+      "start": 3.0,
+      "duration": 0.5,
+      "pitch": 64,
+      "finger": 3
+    },
+    {
+      "start": 4.0,
+      "duration": 1.0,
+      "pitch": 60,
+      "finger": 1
+    },
+    {
+      "start": 4.0,
+      "duration": 1.0,
+      "pitch": 64,
+      "finger": 3
+    },
+    {
+      "start": 5.0,
+      "duration": 1.0,
+      "pitch": 62,
+      "finger": 2
+    },
+    {
+      "start": 5.0,
+      "duration": 1.0,
+      "pitch": 65,
+      "finger": 4
+    },
+    {
+      "start": 6.0,
+      "duration": 2.0,
+      "pitch": 60,
+      "finger": 1
+    },
+    {
+      "start": 6.0,
+      "duration": 2.0,
+      "pitch": 64,
+      "finger": 3
+    },
+    {
+      "start": 6.0,
+      "duration": 2.0,
+      "pitch": 67,
+      "finger": 5
+    }
+  ],
+  "events": [
+    {
+      "timestamp": 0.0,
+      "release": [],
+      "press": [
+        {
+          "finger": 1,
+          "pitch": 60
+        }
+      ]
+    },
+    {
+      "timestamp": 0.5,
+      "release": [
+        {
+          "finger": 1,
+          "pitch": 60
+        }
+      ],
+      "press": [
+        {
+          "finger": 2,
+          "pitch": 62
+        }
+      ]
+    },
+    {
+      "timestamp": 1.0,
+      "release": [
+        {
+          "finger": 2,
+          "pitch": 62
+        }
+      ],
+      "press": [
+        {
+          "finger": 3,
+          "pitch": 64
+        }
+      ]
+    },
+    {
+      "timestamp": 1.5,
+      "release": [
+        {
+          "finger": 3,
+          "pitch": 64
+        }
+      ],
+      "press": [
+        {
+          "finger": 4,
+          "pitch": 65
+        }
+      ]
+    },
+    {
+      "timestamp": 2.0,
+      "release": [
+        {
+          "finger": 4,
+          "pitch": 65
+        }
+      ],
+      "press": [
+        {
+          "finger": 5,
+          "pitch": 67
+        }
+      ]
+    },
+    {
+      "timestamp": 3.0,
+      "release": [
+        {
+          "finger": 5,
+          "pitch": 67
+        }
+      ],
+      "press": [
+        {
+          "finger": 3,
+          "pitch": 64
+        }
+      ]
+    },
+    {
+      "timestamp": 3.5,
+      "release": [
+        {
+          "finger": 3,
+          "pitch": 64
+        }
+      ],
+      "press": []
+    },
+    {
+      "timestamp": 4.0,
+      "release": [],
+      "press": [
+        {
+          "finger": 1,
+          "pitch": 60
+        },
+        {
+          "finger": 3,
+          "pitch": 64
+        }
+      ]
+    },
+    {
+      "timestamp": 5.0,
+      "release": [
+        {
+          "finger": 1,
+          "pitch": 60
+        },
+        {
+          "finger": 3,
+          "pitch": 64
+        }
+      ],
+      "press": [
+        {
+          "finger": 2,
+          "pitch": 62
+        },
+        {
+          "finger": 4,
+          "pitch": 65
+        }
+      ]
+    },
+    {
+      "timestamp": 6.0,
+      "release": [
+        {
+          "finger": 2,
+          "pitch": 62
+        },
+        {
+          "finger": 4,
+          "pitch": 65
+        }
+      ],
+      "press": [
+        {
+          "finger": 1,
+          "pitch": 60
+        },
+        {
+          "finger": 3,
+          "pitch": 64
+        },
+        {
+          "finger": 5,
+          "pitch": 67
+        }
+      ]
+    },
+    {
+      "timestamp": 8.0,
+      "release": [
+        {
+          "finger": 1,
+          "pitch": 60
+        },
+        {
+          "finger": 3,
+          "pitch": 64
+        },
+        {
+          "finger": 5,
+          "pitch": 67
+        }
+      ],
+      "press": []
+    }
+  ]
+}

@@ -1,0 +1,36 @@
+# PROTOTYPE ONLY. These are arbitrary numerical dynamics, not measured hardware.
+prototype: true
+environment:
+  num_envs: 32
+  dt: 0.05
+  bend_speed: 4.0
+  press_threshold: 0.75
+  lookahead_steps: 6
+  lead_in_seconds: 0.5
+  release_tail_seconds: 0.5
+runner:
+  num_steps_per_env: 32
+  save_interval: 100
+  obs_groups:
+    actor: [policy]
+    critic: [policy]
+  logger: tensorboard
+  algorithm:
+    class_name: PPO
+    learning_rate: 0.001
+    num_learning_epochs: 4
+    num_mini_batches: 4
+    entropy_coef: 0.005
+  actor:
+    class_name: MLPModel
+    hidden_dims: [64, 64]
+    activation: elu
+    obs_normalization: true
+    distribution_cfg:
+      class_name: GaussianDistribution
+      init_std: 0.5
+  critic:
+    class_name: MLPModel
+    hidden_dims: [64, 64]
+    activation: elu
+    obs_normalization: true

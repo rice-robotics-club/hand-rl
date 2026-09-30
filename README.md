@@ -181,6 +181,14 @@ must begin early enough to meet them. Adjacent repeated notes may require more
 release/repress time than this idealized schedule allows. Wrist movement and
 automatic fingering across a wider keyboard are not implemented yet.
 
+### RL prototype — not a physical hand model
+
+The [five-finger RL prototype](prototype_rl/README.md) trains RSL-RL PPO on
+abstract finger bends over C4–G4. It exists to test observations, rewards, and
+training before CAD or motors are defined. It has no Genesis contact physics
+or hardware control, and its checkpoints are labeled **PROTOTYPE ONLY**.
+See the linked guide for installation, training commands, and limitations.
+
 # Overall Goals / Timeline
 
 # Pure Simulation goals:

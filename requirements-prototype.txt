@@ -1,0 +1,4 @@
+# Isolated, CPU-capable training prototype. No CAD or Genesis dependency.
+rsl-rl-lib==5.0.0
+tensorboard>=2.20,<3
+PyYAML>=6,<7

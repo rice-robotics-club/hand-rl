@@ -4,14 +4,24 @@ Requires requirements-sheet.txt plus verovio and resvg-py.
 """
 
 import json
-from pathlib import Path
 import xml.etree.ElementTree as ET
+from pathlib import Path
 
-from music21 import bar, chord, clef, instrument, metadata, meter, midi, note, stream, tempo
 import resvg_py
 import verovio
-
 from midi_to_notes import midi_to_note_tuples
+from music21 import (
+    bar,
+    chord,
+    clef,
+    instrument,
+    metadata,
+    meter,
+    midi,
+    note,
+    stream,
+    tempo,
+)
 from sheet_music_to_notes import musicxml_to_notes
 
 
@@ -66,9 +76,17 @@ def main():
     )
 
     renderer = verovio.toolkit()
-    renderer.setOptions({"pageWidth": 2100, "pageHeight": 1000, "scale": 100,
-                         "adjustPageHeight": True, "breaks": "none",
-                         "header": "none", "footer": "none"})
+    renderer.setOptions(
+        {
+            "pageWidth": 2100,
+            "pageHeight": 1000,
+            "scale": 100,
+            "adjustPageHeight": True,
+            "breaks": "none",
+            "header": "none",
+            "footer": "none",
+        }
+    )
     if not renderer.loadFile(str(xml_path)):
         raise RuntimeError("Could not load the generated score for engraving.")
     if renderer.getPageCount() != 1:
@@ -95,7 +113,9 @@ def main():
     )
     assert midi_to_note_tuples(midi_path) == expected, "MIDI differs from known notes"
     assert musicxml_to_notes(xml_path) == expected, "MusicXML differs from known notes"
-    print(f"Created {directory}; verified {len(expected)} notes over {beat * 0.5:g} seconds.")
+    print(
+        f"Created {directory}; verified {len(expected)} notes over {beat * 0.5:g} seconds."
+    )
 
 
 if __name__ == "__main__":

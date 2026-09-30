@@ -1,2 +1,0 @@
--r requirements.txt
-music21>=9.1,<10

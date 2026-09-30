@@ -7,7 +7,7 @@ name = "hand-rl"
 version = "0.1.0"
 description = "Rice Robotics Hand Command"
 readme = "README.md"
-requires-python = ">=3.12"
+requires-python = ">=3.12,<3.13"
 dependencies = [
   "numpy",
   "torch",
@@ -22,13 +22,23 @@ dependencies = [
   "rsl-rl-lib==5.*",
   "cowsay>=6.1",
   "lolcat>=1.4",
+  "pretty_midi>=0.2.11,<0.3",
 ]
 
+[project.scripts]
+ruka = "scripts.ruka_test:main"
+
 [tool.setuptools.packages.find]
-where = ["src"]
+where = ["."]
+include = ["scripts*", "src*"]
+
+[project.optional-dependencies]
+sheet = [
+  "music21>=9.1,<10",
+]
 
 [dependency-groups]
 dev = [
-    "basedpyright>=1.40.1",
-    "ruff>=0.16.8",
+  "basedpyright>=1.40.1",
+  "ruff>=0.16.8",
 ]

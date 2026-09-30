@@ -1,14 +1,13 @@
 """Timing integration tests; the image-routing test mocks the external OMR engine."""
 
-from pathlib import Path
 import shutil
 import subprocess
 import tempfile
 import unittest
+from pathlib import Path
 from unittest.mock import patch
 
 from music21 import bar, chord, layout, meter, note, stream, tempo, tie
-
 from sheet_music_to_notes import musicxml_to_notes, sheet_music_to_notes
 
 
@@ -56,18 +55,22 @@ class SheetMusicTests(unittest.TestCase):
         second.append(note.Note("A-4", quarterLength=1))
         second.append(note.Rest(quarterLength=2))
         actual = musicxml_to_notes(self.write_score([first, second]), bpm=200)
-        self.assertEqual(actual, [(0.0, 1.0, 60), (0.0, 1.0, 64),
-                                  (2.0, 2.5, 67), (4.5, 0.5, 68)])
+        self.assertEqual(
+            actual, [(0.0, 1.0, 60), (0.0, 1.0, 64), (2.0, 2.5, 67), (4.5, 0.5, 68)]
+        )
 
     def test_fallback_tempo_and_rests(self):
         path = self.simple_score()
         self.assertEqual(musicxml_to_notes(path), [(0.0, 0.5, 60), (1.0, 0.5, 62)])
-        self.assertEqual(musicxml_to_notes(path, bpm=60), [(0.0, 1.0, 60), (2.0, 1.0, 62)])
+        self.assertEqual(
+            musicxml_to_notes(path, bpm=60), [(0.0, 1.0, 60), (2.0, 1.0, 62)]
+        )
 
     def test_repeats(self):
-        self.assertEqual(musicxml_to_notes(self.simple_score(repeat=True)),
-                         [(0.0, 0.5, 60), (1.0, 0.5, 62),
-                          (2.0, 0.5, 60), (3.0, 0.5, 62)])
+        self.assertEqual(
+            musicxml_to_notes(self.simple_score(repeat=True)),
+            [(0.0, 0.5, 60), (1.0, 0.5, 62), (2.0, 0.5, 60), (3.0, 0.5, 62)],
+        )
 
     def test_image_routes_recognized_xml_to_notes(self):
         fixture = self.simple_score()
@@ -81,10 +84,13 @@ class SheetMusicTests(unittest.TestCase):
             self.assertEqual(command[-2:], ["--", str(image.resolve())])
             return subprocess.CompletedProcess(command, 0, "", "")
 
-        with patch("sheet_music_to_notes.shutil.which", return_value="Audiveris"), \
-                patch("sheet_music_to_notes.subprocess.run", side_effect=fake_recognition):
-            self.assertEqual(sheet_music_to_notes(image),
-                             [(0.0, 0.5, 60), (1.0, 0.5, 62)])
+        with (
+            patch("sheet_music_to_notes.shutil.which", return_value="Audiveris"),
+            patch("sheet_music_to_notes.subprocess.run", side_effect=fake_recognition),
+        ):
+            self.assertEqual(
+                sheet_music_to_notes(image), [(0.0, 0.5, 60), (1.0, 0.5, 62)]
+            )
 
     def test_invalid_tempo(self):
         for bpm in (0, -1, float("nan"), float("inf")):
@@ -105,7 +111,9 @@ class SheetMusicTests(unittest.TestCase):
         score = stream.Score()
         score.insert(0, right)
         score.insert(0, left)
-        score.insert(0, layout.StaffGroup([right, left], symbol="brace", barTogether=True))
+        score.insert(
+            0, layout.StaffGroup([right, left], symbol="brace", barTogether=True)
+        )
         path = self.root / "piano.musicxml"
         score.write("musicxml", fp=path)
         self.assertEqual(musicxml_to_notes(path), [(0.0, 4.0, 48), (0.0, 4.0, 52)])

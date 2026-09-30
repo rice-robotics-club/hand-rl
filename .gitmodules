@@ -1,0 +1,3 @@
+[submodule "robots/ruka_description"]
+	path = robots/ruka_description
+	url = https://github.com/rice-robotics-club/ruka_description.git

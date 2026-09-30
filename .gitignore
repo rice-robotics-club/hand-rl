@@ -1,5 +1,7 @@
 .venv/
 .venv-audio/
+.venv-prototype/
+prototype_runs/
 __pycache__/
 *.pyc
 *.egg-info/

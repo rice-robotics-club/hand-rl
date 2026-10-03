@@ -1,5 +1,6 @@
-clay goldsmith // cg156@rice.edu
-isabella
-marianna
-emily
-tristan
+clay         //  cg156@rice.edu
+isabella     //  ia33@rice.edu
+marianna     //  ma312@rice.edu
+emily        //  ez58@rice.edu
+tristan      //  tb85@rice.edu
+justin       //  jal30@rice.edu

@@ -1,20 +1,37 @@
-import time
-
 import genesis as gs
-import torch
+from rsl_rl.runners import OnPolicyRunner
 
-from src.sim import RukaSim
+from src.env.ruka_env import RukaEnv
+from src.sim.ruka_sim import RukaSim
 
 
 def main():
     gs.init()
 
-    ruka = RukaSim(num_envs=1)
+    obs_groups = {
+        "actor": ["position", "orientation", "velocity"],
+        "critic": ["position", "orientation", "velocity"],
+    }
 
-    while True:
-        ruka.step(
-            torch.zeros(
-                1,
-            )
-        )
-        time.sleep(1.0 / 60)
+    train_cfg = {
+        "num_steps_per_env": 24,
+        "obs_groups": obs_groups,
+        "save_interval": 100,
+        "algorithm": {
+            "class_name": "PPO",
+        },
+        "actor": {
+            "class_name": "MLPModel",
+            "distribution_cfg": {
+                "class_name": "GaussianDistribution",
+            },
+        },
+        "critic": {
+            "class_name": "MLPModel",
+        },
+    }
+
+    sim = RukaSim(num_envs=1)
+    env = RukaEnv(sim)
+    runner = OnPolicyRunner(env, train_cfg=train_cfg, log_dir="./logs/", device="cuda")
+    runner.learn(num_learning_iterations=1000)

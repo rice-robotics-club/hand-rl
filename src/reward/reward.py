@@ -1,6 +1,6 @@
 """Reward module for computing total rewards from a list of reward terms."""
 
-from abc import ABC, abstractmethod
+from typing import Callable
 
 import torch
 from tensordict import TensorClass, TensorDict, TypedTensorDict
@@ -8,18 +8,7 @@ from tensordict import TensorClass, TensorDict, TypedTensorDict
 _State = TensorClass | TypedTensorDict | TensorDict
 
 
-class RewardTerm[S: _State](ABC):
-    """Abstract base class for a reward term."""
-
-    @property
-    def name(self) -> str:
-        """Name of the reward term."""
-        return self.__class__.__name__
-
-    @abstractmethod
-    def __call__(self, state: S) -> torch.Tensor:
-        """Computes the reward for the given state."""
-        raise NotImplementedError
+type RewardTerm[S: _State] = Callable[[S], torch.Tensor]
 
 
 class RewardFunction[S: _State]:
@@ -43,7 +32,7 @@ class RewardFunction[S: _State]:
             self._weights = torch.ones(len(terms))
         elif isinstance(weights, dict):
             self._weights = torch.tensor(
-                [weights.get(term.name, 1.0) for term in terms]
+                [weights.get(term.__name__, 1.0) for term in terms]
             )
         else:
             self._weights = torch.tensor(weights)
@@ -53,7 +42,7 @@ class RewardFunction[S: _State]:
     def log(self) -> dict[str, float]:
         """Returns the mean reward for each term."""
         return {
-            f"reward/{term.name}": self._buf[:, i].mean().item()
+            f"reward/{term.__name__}": self._buf[:, i].mean().item()
             for i, term in enumerate(self._terms)
         }
 

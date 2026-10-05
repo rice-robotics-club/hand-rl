@@ -20,6 +20,15 @@ class VecAction(ABC, TypedTensorDict):
         """
         raise NotImplementedError
 
+    @classmethod
+    def from_(cls, action: torch.Tensor | TensorDict | Self) -> Self:
+        """Converts an action to a VecAction instance."""
+        if isinstance(action, torch.Tensor):
+            return cls.from_tensor(action)
+        elif isinstance(action, TensorDict):
+            return cls.from_tensordict(action)
+        return action
+
 
 _State = TensorClass | TypedTensorDict | TensorDict
 """Defaults to tensordict, an arbitrary keyed dictionary for use with neural networks."""

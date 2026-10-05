@@ -6,13 +6,13 @@ Exists as an example implementation of the VecSystem interface.
 import genesis as gs
 import torch
 from jaxtyping import Float
-from tensordict import TensorDict, TypedTensorDict
+from tensordict import TypedTensorDict
 
 from .vec_system import VecAction, VecSystem
 
 
 class RukaState(TypedTensorDict):
-    """Defines an example state to demonstrate the use of TensorClass."""
+    """Defines an example state to demonstrate a structured State dictionary."""
 
     position: Float[torch.Tensor, "*batch 3"]
     orientation: Float[torch.Tensor, "*batch 4"]
@@ -95,11 +95,8 @@ class RukaSim(VecSystem[RukaState, RukaAction]):
         """The current state of the system."""
         return self._state
 
-    def step(self, action: RukaAction | TensorDict):
+    def step(self, action: RukaAction):
         """Steps the simulation forward by one timestep."""
-        if isinstance(action, TensorDict):
-            action = RukaAction.from_tensordict(action)
-
         self._robot.set_dofs_position(action.joint_angles)
         self._scene.step()
         self._state.position.copy_(self._robot.get_pos())  # type: ignore

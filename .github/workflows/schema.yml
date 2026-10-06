@@ -27,6 +27,8 @@ jobs:
         uses: astral-sh/setup-uv@v10.2.0
         with:
           activate-environment: true
+      - name: Install the project
+        run: uv sync --locked --all-extras --dev
       - name: Generate JSONSchema
         run: generate_schema
       - name: Setup Pages
@@ -34,7 +36,7 @@ jobs:
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
         with:
-          path: 'config/schemas/'
+          path: 'schemas/'
       - name: Deploy to GitHub Pages
         id: deployment
         uses: actions/deploy-pages@v5

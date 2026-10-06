@@ -4,7 +4,7 @@ from typing import Annotated
 import yaml
 from pydantic import Field, TypeAdapter
 
-from src.base_config import ConfigBase
+from src.base_config import Config
 from src.config.runner import RunnerConfig
 from src.env.ruka_env import RukaEnvConfig
 from src.sim.ruka_sim import RukaSimConfig
@@ -14,7 +14,7 @@ EnvConfig = Annotated[RukaEnvConfig, Field(discriminator="class_name")]
 SystemConfig = Annotated[RukaSimConfig, Field(discriminator="class_name")]
 
 
-class Config[E: EnvConfig, S: SystemConfig](ConfigBase):
+class TrainingConfig[E: EnvConfig, S: SystemConfig](Config):
     """Root configuration for a training run."""
 
     runner: RunnerConfig
@@ -27,7 +27,7 @@ class Config[E: EnvConfig, S: SystemConfig](ConfigBase):
     """Configuration for the run's system."""
 
 
-def get_config[E: EnvConfig, S: SystemConfig](path: str | Path) -> Config[E, S]:
+def get_config[E: EnvConfig, S: SystemConfig](path: str | Path) -> TrainingConfig[E, S]:
     """Loads a typed configuration from a file path.
 
     Type parameters:
@@ -41,4 +41,4 @@ def get_config[E: EnvConfig, S: SystemConfig](path: str | Path) -> Config[E, S]:
         The validated configuration.
     """
     raw = yaml.safe_load(Path(path).read_text())
-    return TypeAdapter(Config[E, S]).validate_python(raw)
+    return TypeAdapter(TrainingConfig[E, S]).validate_python(raw)

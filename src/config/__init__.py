@@ -1,5 +1,5 @@
-from src.base_config import ConfigBase
+from src.base_config import Config
 
-from .config import Config, get_config
+from .config import TrainingConfig, get_config
 
-__all__ = ["Config", "ConfigBase", "get_config"]
+__all__ = ["Config", "TrainingConfig", "get_config"]

@@ -4,7 +4,7 @@ import torch
 from rsl_rl.env import VecEnv
 from torch import Tensor
 
-from src.base_config import ConfigBase
+from src.base_config import Config
 from src.reward import RewardFunction
 from src.sim import VecSystem
 from src.sim.ruka_sim import RukaAction, RukaState
@@ -15,8 +15,8 @@ def velocity_norm(state: RukaState) -> torch.Tensor:
     return state.velocity.norm(dim=-1)
 
 
-class RukaEnvConfig(ConfigBase):
-    class_name: Literal["RukaEnv"] = "RukaEnv"
+class RukaEnvConfig(Config):
+    class_name: Literal["src.env.ruka_env:RukaEnv"]
 
     fingers: int = 5
     """The number of fingers to use in the environment."""

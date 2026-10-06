@@ -1,4 +1,4 @@
-# yaml-language-server: $schema=https://rice-robotics-club.github.io/hand-rl/schema.json
+# yaml-language-server: $schema=schemas/schema.json
 runner:
   class_name: OnPolicyRunner
   save_interval: 100
@@ -23,8 +23,8 @@ runner:
     distribution_cfg:
       class_name: GaussianDistribution
 env:
-  class_name: RukaEnv
+  class_name: src.env.ruka_env:RukaEnv
   fingers: 100
 system:
-  class_name: RukaSim
+  class_name: src.sim.ruka_sim:RukaSim
   num_envs: 100

@@ -8,7 +8,7 @@ from typing import Annotated, Any, Literal
 
 from pydantic import Field
 
-from src.base_config import ConfigBase
+from src.base_config import Config
 
 Optimizer = Literal["adam", "adamw", "sgd", "rmsprop"]
 """Names accepted by `rsl_rl.utils.utils.resolve_optimizer`."""
@@ -30,7 +30,7 @@ Activation = Literal[
 """Names accepted by `rsl_rl.utils.utils.resolve_nn_activation`."""
 
 
-class LoggerConfig(ConfigBase):
+class LoggerConfig(Config):
     """Logging writer config for Weights & Biases and Neptune.
 
     Source: https://leggedrobotics.github.io/rsl_rl/guide/configuration.html#logger
@@ -43,7 +43,7 @@ class LoggerConfig(ConfigBase):
     """Name of the project."""
 
 
-class GaussianDistributionConfig(ConfigBase):
+class GaussianDistributionConfig(Config):
     """Gaussian distribution config.
 
     Source: https://leggedrobotics.github.io/rsl_rl/guide/configuration.html#gaussiandistribution
@@ -65,7 +65,7 @@ class GaussianDistributionConfig(ConfigBase):
     """Whether the standard deviation is learnable or fixed."""
 
 
-class HeteroscedasticGaussianDistributionConfig(ConfigBase):
+class HeteroscedasticGaussianDistributionConfig(Config):
     """Heteroscedastic Gaussian distribution config.
 
     Source: https://leggedrobotics.github.io/rsl_rl/guide/configuration.html#heteroscedasticgaussiandistribution
@@ -86,7 +86,7 @@ class HeteroscedasticGaussianDistributionConfig(ConfigBase):
     """Whether the standard deviation is stored directly or in log-space."""
 
 
-class BetaDistributionConfig(ConfigBase):
+class BetaDistributionConfig(Config):
     """Beta distribution config.
 
     Source: https://leggedrobotics.github.io/rsl_rl/guide/configuration.html#betadistribution
@@ -108,7 +108,7 @@ DistributionConfig = Annotated[
 """Any distribution config, selected by `class_name`."""
 
 
-class ConstantWeightScheduleConfig(ConfigBase):
+class ConstantWeightScheduleConfig(Config):
     """Constant RND weight schedule config.
 
     Source: https://github.com/leggedrobotics/rsl_rl/blob/main/rsl_rl/extensions/rnd.py
@@ -118,7 +118,7 @@ class ConstantWeightScheduleConfig(ConfigBase):
     """Type of schedule to use for the RND weight parameter."""
 
 
-class StepWeightScheduleConfig(ConfigBase):
+class StepWeightScheduleConfig(Config):
     """Step RND weight schedule config.
 
     Source: https://github.com/leggedrobotics/rsl_rl/blob/main/rsl_rl/extensions/rnd.py
@@ -134,7 +134,7 @@ class StepWeightScheduleConfig(ConfigBase):
     """Final value of the weight parameter."""
 
 
-class LinearWeightScheduleConfig(ConfigBase):
+class LinearWeightScheduleConfig(Config):
     """Linear RND weight schedule config.
 
     Source: https://github.com/leggedrobotics/rsl_rl/blob/main/rsl_rl/extensions/rnd.py
@@ -162,7 +162,7 @@ WeightScheduleConfig = Annotated[
 """Any RND weight schedule config, selected by `mode`."""
 
 
-class RNDConfig(ConfigBase):
+class RNDConfig(Config):
     """Random Network Distillation extension config.
 
     Source: https://leggedrobotics.github.io/rsl_rl/guide/configuration.html#random-network-distillation
@@ -196,7 +196,7 @@ class RNDConfig(ConfigBase):
     """Learning rate for the RND optimizer."""
 
 
-class SymmetryConfig(ConfigBase):
+class SymmetryConfig(Config):
     """Symmetry augmentation extension config.
 
     Source: https://leggedrobotics.github.io/rsl_rl/guide/configuration.html#symmetry-augmentation
@@ -215,7 +215,7 @@ class SymmetryConfig(ConfigBase):
     """Coefficient for the symmetry loss."""
 
 
-class PPOConfig(ConfigBase):
+class PPOConfig(Config):
     """Proximal Policy Optimization algorithm config.
 
     Source: https://leggedrobotics.github.io/rsl_rl/guide/configuration.html#ppo
@@ -282,7 +282,7 @@ class PPOConfig(ConfigBase):
     """Maximum size, in megabytes, of a single packed gradient buffer used when reducing gradients across GPUs during multi-GPU training. Matches `torch.nn.parallel.DistributedDataParallel`'s default `bucket_cap_mb`."""
 
 
-class DistillationConfig(ConfigBase):
+class DistillationConfig(Config):
     """Student-teacher distillation algorithm config.
 
     Source: https://leggedrobotics.github.io/rsl_rl/guide/configuration.html#distillation
@@ -316,7 +316,7 @@ class DistillationConfig(ConfigBase):
     """Maximum size, in megabytes, of a single packed gradient buffer used when reducing gradients across GPUs during multi-GPU training. Matches `torch.nn.parallel.DistributedDataParallel`'s default `bucket_cap_mb`."""
 
 
-class _MLPModelFields(ConfigBase):
+class _MLPModelFields(Config):
     """Keys shared by `MLPModel`, `RNNModel`, and `CNNModel`.
 
     Source: https://leggedrobotics.github.io/rsl_rl/guide/configuration.html#mlpmodel
@@ -366,7 +366,7 @@ class RNNModelConfig(_MLPModelFields):
     """Number of RNN layers."""
 
 
-class CNNEncoderConfig(ConfigBase):
+class CNNEncoderConfig(Config):
     """Configuration of a single CNN encoder.
 
     Source: https://leggedrobotics.github.io/rsl_rl/guide/configuration.html#cnnmodel
@@ -427,7 +427,7 @@ ModelConfig = Annotated[
 """Any model config, selected by `class_name`."""
 
 
-class _RunnerFields(ConfigBase):
+class _RunnerFields(Config):
     """Keys shared by `OnPolicyRunner` and `DistillationRunner`.
 
     Source: https://leggedrobotics.github.io/rsl_rl/guide/configuration.html#onpolicyrunner

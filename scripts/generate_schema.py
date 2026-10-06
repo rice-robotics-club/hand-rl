@@ -5,12 +5,12 @@ from pathlib import Path
 
 from pydantic import TypeAdapter
 
-from src.config import Config
+from src.config import TrainingConfig
 
-schema_dir = Path(__file__).parent.parent / "schemas"
+schema_dir = Path(__file__).parent.parent / "config" / "schemas"
 
 schemas = {
-    "schema.json": Config,
+    "schema.json": TrainingConfig,
 }
 
 

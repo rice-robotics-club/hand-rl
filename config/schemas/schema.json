@@ -1,0 +1,1445 @@
+{
+  "$defs": {
+    "BetaDistributionConfig": {
+      "additionalProperties": false,
+      "description": "Beta distribution config.\n\nSource: https://leggedrobotics.github.io/rsl_rl/guide/configuration.html#betadistribution",
+      "properties": {
+        "class_name": {
+          "const": "BetaDistribution",
+          "default": "BetaDistribution",
+          "description": "Distribution class name.",
+          "title": "Class Name",
+          "type": "string"
+        },
+        "action_range": {
+          "default": [
+            -1.0,
+            1.0
+          ],
+          "description": "Interval `(min, max)` to which samples are linearly rescaled. The Beta distribution naturally produces samples in `[0, 1]`, which are rescaled to this range.",
+          "maxItems": 2,
+          "minItems": 2,
+          "prefixItems": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "number"
+            }
+          ],
+          "title": "Action Range",
+          "type": "array"
+        }
+      },
+      "title": "BetaDistributionConfig",
+      "type": "object"
+    },
+    "CNNEncoderConfig": {
+      "additionalProperties": false,
+      "description": "Configuration of a single CNN encoder.\n\nSource: https://leggedrobotics.github.io/rsl_rl/guide/configuration.html#cnnmodel",
+      "properties": {
+        "output_channels": {
+          "description": "Output channels for each convolutional layer.",
+          "items": {
+            "type": "integer"
+          },
+          "title": "Output Channels",
+          "type": "array"
+        },
+        "kernel_size": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "items": {
+                "type": "integer"
+              },
+              "type": "array"
+            }
+          ],
+          "description": "Kernel size for each convolutional layer or a single kernel size for all layers.",
+          "title": "Kernel Size"
+        },
+        "stride": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "items": {
+                "type": "integer"
+              },
+              "type": "array"
+            }
+          ],
+          "default": 1,
+          "description": "Stride for each convolutional layer or a single stride for all layers.",
+          "title": "Stride"
+        },
+        "dilation": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "items": {
+                "type": "integer"
+              },
+              "type": "array"
+            }
+          ],
+          "default": 1,
+          "description": "Dilation for each convolutional layer or a single dilation for all layers.",
+          "title": "Dilation"
+        },
+        "padding": {
+          "default": "none",
+          "description": "Padding type to use.",
+          "enum": [
+            "none",
+            "zeros",
+            "reflect",
+            "replicate",
+            "circular"
+          ],
+          "title": "Padding",
+          "type": "string"
+        },
+        "norm": {
+          "anyOf": [
+            {
+              "enum": [
+                "none",
+                "batch",
+                "layer"
+              ],
+              "type": "string"
+            },
+            {
+              "items": {
+                "enum": [
+                  "none",
+                  "batch",
+                  "layer"
+                ],
+                "type": "string"
+              },
+              "type": "array"
+            }
+          ],
+          "default": "none",
+          "description": "Normalization type for each convolutional layer or a single normalization type for all layers.",
+          "title": "Norm"
+        },
+        "activation": {
+          "default": "elu",
+          "description": "Activation function to use.",
+          "enum": [
+            "elu",
+            "selu",
+            "relu",
+            "crelu",
+            "lrelu",
+            "tanh",
+            "sigmoid",
+            "softplus",
+            "gelu",
+            "swish",
+            "mish",
+            "identity"
+          ],
+          "title": "Activation",
+          "type": "string"
+        },
+        "max_pool": {
+          "anyOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "items": {
+                "type": "boolean"
+              },
+              "type": "array"
+            }
+          ],
+          "default": false,
+          "description": "Whether to apply max pooling after each convolutional layer or a single boolean for all layers.",
+          "title": "Max Pool"
+        },
+        "global_pool": {
+          "default": "none",
+          "description": "Global pooling type to apply at the end.",
+          "enum": [
+            "none",
+            "max",
+            "avg"
+          ],
+          "title": "Global Pool",
+          "type": "string"
+        },
+        "flatten": {
+          "default": true,
+          "description": "Whether to flatten the output tensor.",
+          "title": "Flatten",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "output_channels",
+        "kernel_size"
+      ],
+      "title": "CNNEncoderConfig",
+      "type": "object"
+    },
+    "CNNModelConfig": {
+      "additionalProperties": false,
+      "description": "Convolutional neural network model config.\n\nSource: https://leggedrobotics.github.io/rsl_rl/guide/configuration.html#cnnmodel",
+      "properties": {
+        "distribution_cfg": {
+          "description": "Optional output distribution configuration. If provided, the model can output stochastic values sampled from the specified distribution.",
+          "discriminator": {
+            "mapping": {
+              "BetaDistribution": "#/$defs/BetaDistributionConfig",
+              "GaussianDistribution": "#/$defs/GaussianDistributionConfig",
+              "HeteroscedasticGaussianDistribution": "#/$defs/HeteroscedasticGaussianDistributionConfig"
+            },
+            "propertyName": "class_name"
+          },
+          "oneOf": [
+            {
+              "$ref": "#/$defs/GaussianDistributionConfig"
+            },
+            {
+              "$ref": "#/$defs/HeteroscedasticGaussianDistributionConfig"
+            },
+            {
+              "$ref": "#/$defs/BetaDistributionConfig"
+            }
+          ],
+          "title": "Distribution Cfg"
+        },
+        "hidden_dims": {
+          "description": "Hidden dimensions of the MLP.",
+          "items": {
+            "type": "integer"
+          },
+          "title": "Hidden Dims",
+          "type": "array"
+        },
+        "activation": {
+          "default": "elu",
+          "description": "Activation function of the MLP.",
+          "enum": [
+            "elu",
+            "selu",
+            "relu",
+            "crelu",
+            "lrelu",
+            "tanh",
+            "sigmoid",
+            "softplus",
+            "gelu",
+            "swish",
+            "mish",
+            "identity"
+          ],
+          "title": "Activation",
+          "type": "string"
+        },
+        "obs_normalization": {
+          "default": false,
+          "description": "Whether to normalize the observations before passing them to the MLP.",
+          "title": "Obs Normalization",
+          "type": "boolean"
+        },
+        "class_name": {
+          "const": "CNNModel",
+          "default": "CNNModel",
+          "description": "Model class name.",
+          "title": "Class Name",
+          "type": "string"
+        },
+        "cnn_cfg": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/CNNEncoderConfig"
+            },
+            {
+              "additionalProperties": {
+                "$ref": "#/$defs/CNNEncoderConfig"
+              },
+              "type": "object"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Configuration of the CNN encoder(s). Either a single encoder config shared by all CNNs, or a mapping from observation name to the encoder config applying to it.",
+          "title": "Cnn Cfg"
+        }
+      },
+      "required": [
+        "distribution_cfg"
+      ],
+      "title": "CNNModelConfig",
+      "type": "object"
+    },
+    "ConstantWeightScheduleConfig": {
+      "additionalProperties": false,
+      "description": "Constant RND weight schedule config.\n\nSource: https://github.com/leggedrobotics/rsl_rl/blob/main/rsl_rl/extensions/rnd.py",
+      "properties": {
+        "mode": {
+          "const": "constant",
+          "default": "constant",
+          "description": "Type of schedule to use for the RND weight parameter.",
+          "title": "Mode",
+          "type": "string"
+        }
+      },
+      "title": "ConstantWeightScheduleConfig",
+      "type": "object"
+    },
+    "DistillationConfig": {
+      "additionalProperties": false,
+      "description": "Student-teacher distillation algorithm config.\n\nSource: https://leggedrobotics.github.io/rsl_rl/guide/configuration.html#distillation",
+      "properties": {
+        "class_name": {
+          "const": "Distillation",
+          "default": "Distillation",
+          "description": "Algorithm class name.",
+          "title": "Class Name",
+          "type": "string"
+        },
+        "optimizer": {
+          "default": "adam",
+          "description": "Optimizer used for student updates.",
+          "enum": [
+            "adam",
+            "adamw",
+            "sgd",
+            "rmsprop"
+          ],
+          "title": "Optimizer",
+          "type": "string"
+        },
+        "learning_rate": {
+          "default": 0.001,
+          "description": "Optimizer learning rate.",
+          "title": "Learning Rate",
+          "type": "number"
+        },
+        "num_learning_epochs": {
+          "default": 1,
+          "description": "Number of optimization epochs per iteration.",
+          "title": "Num Learning Epochs",
+          "type": "integer"
+        },
+        "gradient_length": {
+          "default": 15,
+          "description": "Gradient backpropagation length.",
+          "title": "Gradient Length",
+          "type": "integer"
+        },
+        "max_grad_norm": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Maximum gradient norm for gradient clipping.",
+          "title": "Max Grad Norm"
+        },
+        "loss_type": {
+          "default": "mse",
+          "description": "Loss type.",
+          "enum": [
+            "mse",
+            "huber"
+          ],
+          "title": "Loss Type",
+          "type": "string"
+        },
+        "use_mixed_precision": {
+          "default": false,
+          "description": "Whether to run the forward pass and loss computation in bfloat16 autocast. Backward, gradient clipping, and the optimizer step always stay in fp32.",
+          "title": "Use Mixed Precision",
+          "type": "boolean"
+        },
+        "grad_reduce_bucket_mb": {
+          "default": 25.0,
+          "description": "Maximum size, in megabytes, of a single packed gradient buffer used when reducing gradients across GPUs during multi-GPU training. Matches `torch.nn.parallel.DistributedDataParallel`'s default `bucket_cap_mb`.",
+          "title": "Grad Reduce Bucket Mb",
+          "type": "number"
+        }
+      },
+      "title": "DistillationConfig",
+      "type": "object"
+    },
+    "DistillationRunnerConfig": {
+      "additionalProperties": false,
+      "description": "Distillation runner config.\n\nSource: https://leggedrobotics.github.io/rsl_rl/guide/configuration.html#distillationrunner",
+      "properties": {
+        "obs_groups": {
+          "additionalProperties": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "description": "Mapping from observation sets to observation groups coming from the environment.",
+          "title": "Obs Groups",
+          "type": "object"
+        },
+        "num_steps_per_env": {
+          "description": "Number of environment steps collected per iteration.",
+          "title": "Num Steps Per Env",
+          "type": "integer"
+        },
+        "save_interval": {
+          "description": "Number of iterations between checkpoints.",
+          "title": "Save Interval",
+          "type": "integer"
+        },
+        "run_name": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Optional run label shown in the console output.",
+          "title": "Run Name"
+        },
+        "check_for_nan": {
+          "default": true,
+          "description": "Whether to check for NaN values coming from the environment.",
+          "title": "Check For Nan",
+          "type": "boolean"
+        },
+        "torch_compile_mode": {
+          "anyOf": [
+            {
+              "enum": [
+                "default",
+                "max-autotune-no-cudagraphs"
+              ],
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Compile mode for the PyTorch models to accelerate training.",
+          "title": "Torch Compile Mode"
+        },
+        "logger": {
+          "anyOf": [
+            {
+              "const": "tensorboard",
+              "type": "string"
+            },
+            {
+              "$ref": "#/$defs/LoggerConfig"
+            }
+          ],
+          "default": "tensorboard",
+          "description": "Logging writer configuration.",
+          "title": "Logger"
+        },
+        "class_name": {
+          "const": "DistillationRunner",
+          "default": "DistillationRunner",
+          "description": "Class name of the runner to use.",
+          "title": "Class Name",
+          "type": "string"
+        },
+        "algorithm": {
+          "$ref": "#/$defs/DistillationConfig",
+          "description": "RL algorithm configuration."
+        },
+        "student": {
+          "description": "Student model configuration.",
+          "discriminator": {
+            "mapping": {
+              "CNNModel": "#/$defs/CNNModelConfig",
+              "MLPModel": "#/$defs/MLPModelConfig",
+              "RNNModel": "#/$defs/RNNModelConfig"
+            },
+            "propertyName": "class_name"
+          },
+          "oneOf": [
+            {
+              "$ref": "#/$defs/MLPModelConfig"
+            },
+            {
+              "$ref": "#/$defs/RNNModelConfig"
+            },
+            {
+              "$ref": "#/$defs/CNNModelConfig"
+            }
+          ],
+          "title": "Student"
+        },
+        "teacher": {
+          "description": "Teacher model configuration.",
+          "discriminator": {
+            "mapping": {
+              "CNNModel": "#/$defs/CNNModelConfig",
+              "MLPModel": "#/$defs/MLPModelConfig",
+              "RNNModel": "#/$defs/RNNModelConfig"
+            },
+            "propertyName": "class_name"
+          },
+          "oneOf": [
+            {
+              "$ref": "#/$defs/MLPModelConfig"
+            },
+            {
+              "$ref": "#/$defs/RNNModelConfig"
+            },
+            {
+              "$ref": "#/$defs/CNNModelConfig"
+            }
+          ],
+          "title": "Teacher"
+        }
+      },
+      "required": [
+        "obs_groups",
+        "num_steps_per_env",
+        "save_interval",
+        "algorithm",
+        "student",
+        "teacher"
+      ],
+      "title": "DistillationRunnerConfig",
+      "type": "object"
+    },
+    "GaussianDistributionConfig": {
+      "additionalProperties": false,
+      "description": "Gaussian distribution config.\n\nSource: https://leggedrobotics.github.io/rsl_rl/guide/configuration.html#gaussiandistribution",
+      "properties": {
+        "class_name": {
+          "const": "GaussianDistribution",
+          "default": "GaussianDistribution",
+          "description": "Distribution class name.",
+          "title": "Class Name",
+          "type": "string"
+        },
+        "init_std": {
+          "default": 1.0,
+          "description": "Initial standard deviation for all dimensions.",
+          "title": "Init Std",
+          "type": "number"
+        },
+        "std_range": {
+          "default": [
+            1e-06,
+            1000000.0
+          ],
+          "description": "Minimum and maximum allowed values for the standard deviation for numerical stability.",
+          "maxItems": 2,
+          "minItems": 2,
+          "prefixItems": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "number"
+            }
+          ],
+          "title": "Std Range",
+          "type": "array"
+        },
+        "std_type": {
+          "default": "scalar",
+          "description": "Whether the standard deviation is stored directly or in log-space.",
+          "enum": [
+            "scalar",
+            "log"
+          ],
+          "title": "Std Type",
+          "type": "string"
+        },
+        "learn_std": {
+          "default": true,
+          "description": "Whether the standard deviation is learnable or fixed.",
+          "title": "Learn Std",
+          "type": "boolean"
+        }
+      },
+      "title": "GaussianDistributionConfig",
+      "type": "object"
+    },
+    "HeteroscedasticGaussianDistributionConfig": {
+      "additionalProperties": false,
+      "description": "Heteroscedastic Gaussian distribution config.\n\nSource: https://leggedrobotics.github.io/rsl_rl/guide/configuration.html#heteroscedasticgaussiandistribution",
+      "properties": {
+        "class_name": {
+          "const": "HeteroscedasticGaussianDistribution",
+          "default": "HeteroscedasticGaussianDistribution",
+          "description": "Distribution class name.",
+          "title": "Class Name",
+          "type": "string"
+        },
+        "init_std": {
+          "default": 1.0,
+          "description": "Initial standard deviation (used to initialize the std head bias).",
+          "title": "Init Std",
+          "type": "number"
+        },
+        "std_range": {
+          "default": [
+            1e-06,
+            1000000.0
+          ],
+          "description": "Minimum and maximum allowed values for the standard deviation for numerical stability.",
+          "maxItems": 2,
+          "minItems": 2,
+          "prefixItems": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "number"
+            }
+          ],
+          "title": "Std Range",
+          "type": "array"
+        },
+        "std_type": {
+          "default": "scalar",
+          "description": "Whether the standard deviation is stored directly or in log-space.",
+          "enum": [
+            "scalar",
+            "log"
+          ],
+          "title": "Std Type",
+          "type": "string"
+        }
+      },
+      "title": "HeteroscedasticGaussianDistributionConfig",
+      "type": "object"
+    },
+    "LinearWeightScheduleConfig": {
+      "additionalProperties": false,
+      "description": "Linear RND weight schedule config.\n\nSource: https://github.com/leggedrobotics/rsl_rl/blob/main/rsl_rl/extensions/rnd.py",
+      "properties": {
+        "mode": {
+          "const": "linear",
+          "default": "linear",
+          "description": "Type of schedule to use for the RND weight parameter.",
+          "title": "Mode",
+          "type": "string"
+        },
+        "initial_step": {
+          "description": "Step at which the weight starts changing from its initial value.",
+          "title": "Initial Step",
+          "type": "integer"
+        },
+        "final_step": {
+          "description": "Step at which the weight reaches the final value.",
+          "title": "Final Step",
+          "type": "integer"
+        },
+        "final_value": {
+          "description": "Final value of the weight parameter.",
+          "title": "Final Value",
+          "type": "number"
+        }
+      },
+      "required": [
+        "initial_step",
+        "final_step",
+        "final_value"
+      ],
+      "title": "LinearWeightScheduleConfig",
+      "type": "object"
+    },
+    "LoggerConfig": {
+      "additionalProperties": false,
+      "description": "Logging writer config for Weights & Biases and Neptune.\n\nSource: https://leggedrobotics.github.io/rsl_rl/guide/configuration.html#logger",
+      "properties": {
+        "class_name": {
+          "description": "Logger class name.",
+          "enum": [
+            "WandbLogWriter",
+            "NeptuneLogWriter"
+          ],
+          "title": "Class Name",
+          "type": "string"
+        },
+        "project_name": {
+          "description": "Name of the project.",
+          "title": "Project Name",
+          "type": "string"
+        }
+      },
+      "required": [
+        "class_name",
+        "project_name"
+      ],
+      "title": "LoggerConfig",
+      "type": "object"
+    },
+    "MLPModelConfig": {
+      "additionalProperties": false,
+      "description": "Multi-layer perceptron model config.\n\nSource: https://leggedrobotics.github.io/rsl_rl/guide/configuration.html#mlpmodel",
+      "properties": {
+        "distribution_cfg": {
+          "description": "Optional output distribution configuration. If provided, the model can output stochastic values sampled from the specified distribution.",
+          "discriminator": {
+            "mapping": {
+              "BetaDistribution": "#/$defs/BetaDistributionConfig",
+              "GaussianDistribution": "#/$defs/GaussianDistributionConfig",
+              "HeteroscedasticGaussianDistribution": "#/$defs/HeteroscedasticGaussianDistributionConfig"
+            },
+            "propertyName": "class_name"
+          },
+          "oneOf": [
+            {
+              "$ref": "#/$defs/GaussianDistributionConfig"
+            },
+            {
+              "$ref": "#/$defs/HeteroscedasticGaussianDistributionConfig"
+            },
+            {
+              "$ref": "#/$defs/BetaDistributionConfig"
+            }
+          ],
+          "title": "Distribution Cfg"
+        },
+        "hidden_dims": {
+          "description": "Hidden dimensions of the MLP.",
+          "items": {
+            "type": "integer"
+          },
+          "title": "Hidden Dims",
+          "type": "array"
+        },
+        "activation": {
+          "default": "elu",
+          "description": "Activation function of the MLP.",
+          "enum": [
+            "elu",
+            "selu",
+            "relu",
+            "crelu",
+            "lrelu",
+            "tanh",
+            "sigmoid",
+            "softplus",
+            "gelu",
+            "swish",
+            "mish",
+            "identity"
+          ],
+          "title": "Activation",
+          "type": "string"
+        },
+        "obs_normalization": {
+          "default": false,
+          "description": "Whether to normalize the observations before passing them to the MLP.",
+          "title": "Obs Normalization",
+          "type": "boolean"
+        },
+        "class_name": {
+          "const": "MLPModel",
+          "default": "MLPModel",
+          "description": "Model class name.",
+          "title": "Class Name",
+          "type": "string"
+        }
+      },
+      "required": [
+        "distribution_cfg"
+      ],
+      "title": "MLPModelConfig",
+      "type": "object"
+    },
+    "OnPolicyRunnerConfig": {
+      "additionalProperties": false,
+      "description": "On-policy runner config.\n\nSource: https://leggedrobotics.github.io/rsl_rl/guide/configuration.html#onpolicyrunner",
+      "properties": {
+        "obs_groups": {
+          "additionalProperties": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "description": "Mapping from observation sets to observation groups coming from the environment.",
+          "title": "Obs Groups",
+          "type": "object"
+        },
+        "num_steps_per_env": {
+          "description": "Number of environment steps collected per iteration.",
+          "title": "Num Steps Per Env",
+          "type": "integer"
+        },
+        "save_interval": {
+          "description": "Number of iterations between checkpoints.",
+          "title": "Save Interval",
+          "type": "integer"
+        },
+        "run_name": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Optional run label shown in the console output.",
+          "title": "Run Name"
+        },
+        "check_for_nan": {
+          "default": true,
+          "description": "Whether to check for NaN values coming from the environment.",
+          "title": "Check For Nan",
+          "type": "boolean"
+        },
+        "torch_compile_mode": {
+          "anyOf": [
+            {
+              "enum": [
+                "default",
+                "max-autotune-no-cudagraphs"
+              ],
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Compile mode for the PyTorch models to accelerate training.",
+          "title": "Torch Compile Mode"
+        },
+        "logger": {
+          "anyOf": [
+            {
+              "const": "tensorboard",
+              "type": "string"
+            },
+            {
+              "$ref": "#/$defs/LoggerConfig"
+            }
+          ],
+          "default": "tensorboard",
+          "description": "Logging writer configuration.",
+          "title": "Logger"
+        },
+        "class_name": {
+          "const": "OnPolicyRunner",
+          "default": "OnPolicyRunner",
+          "description": "Class name of the runner to use.",
+          "title": "Class Name",
+          "type": "string"
+        },
+        "algorithm": {
+          "$ref": "#/$defs/PPOConfig",
+          "description": "RL algorithm configuration."
+        },
+        "actor": {
+          "description": "Actor model configuration.",
+          "discriminator": {
+            "mapping": {
+              "CNNModel": "#/$defs/CNNModelConfig",
+              "MLPModel": "#/$defs/MLPModelConfig",
+              "RNNModel": "#/$defs/RNNModelConfig"
+            },
+            "propertyName": "class_name"
+          },
+          "oneOf": [
+            {
+              "$ref": "#/$defs/MLPModelConfig"
+            },
+            {
+              "$ref": "#/$defs/RNNModelConfig"
+            },
+            {
+              "$ref": "#/$defs/CNNModelConfig"
+            }
+          ],
+          "title": "Actor"
+        },
+        "critic": {
+          "description": "Critic model configuration.",
+          "discriminator": {
+            "mapping": {
+              "CNNModel": "#/$defs/CNNModelConfig",
+              "MLPModel": "#/$defs/MLPModelConfig",
+              "RNNModel": "#/$defs/RNNModelConfig"
+            },
+            "propertyName": "class_name"
+          },
+          "oneOf": [
+            {
+              "$ref": "#/$defs/MLPModelConfig"
+            },
+            {
+              "$ref": "#/$defs/RNNModelConfig"
+            },
+            {
+              "$ref": "#/$defs/CNNModelConfig"
+            }
+          ],
+          "title": "Critic"
+        }
+      },
+      "required": [
+        "obs_groups",
+        "num_steps_per_env",
+        "save_interval",
+        "algorithm",
+        "actor",
+        "critic"
+      ],
+      "title": "OnPolicyRunnerConfig",
+      "type": "object"
+    },
+    "PPOConfig": {
+      "additionalProperties": false,
+      "description": "Proximal Policy Optimization algorithm config.\n\nSource: https://leggedrobotics.github.io/rsl_rl/guide/configuration.html#ppo",
+      "properties": {
+        "class_name": {
+          "const": "PPO",
+          "default": "PPO",
+          "description": "Algorithm class name.",
+          "title": "Class Name",
+          "type": "string"
+        },
+        "optimizer": {
+          "default": "adam",
+          "description": "Optimizer used for policy/value updates.",
+          "enum": [
+            "adam",
+            "adamw",
+            "sgd",
+            "rmsprop"
+          ],
+          "title": "Optimizer",
+          "type": "string"
+        },
+        "learning_rate": {
+          "default": 0.001,
+          "description": "Optimizer learning rate.",
+          "title": "Learning Rate",
+          "type": "number"
+        },
+        "num_learning_epochs": {
+          "default": 5,
+          "description": "Number of optimization epochs per iteration.",
+          "title": "Num Learning Epochs",
+          "type": "integer"
+        },
+        "num_mini_batches": {
+          "default": 4,
+          "description": "Number of mini-batches per iteration.",
+          "title": "Num Mini Batches",
+          "type": "integer"
+        },
+        "schedule": {
+          "default": "adaptive",
+          "description": "Learning rate schedule.",
+          "enum": [
+            "adaptive",
+            "fixed"
+          ],
+          "title": "Schedule",
+          "type": "string"
+        },
+        "value_loss_coef": {
+          "default": 1.0,
+          "description": "Coefficient for the value-function loss.",
+          "title": "Value Loss Coef",
+          "type": "number"
+        },
+        "clip_param": {
+          "default": 0.2,
+          "description": "PPO clipping parameter for surrogate/value clipping.",
+          "title": "Clip Param",
+          "type": "number"
+        },
+        "use_clipped_value_loss": {
+          "default": true,
+          "description": "Whether to use clip the value loss.",
+          "title": "Use Clipped Value Loss",
+          "type": "boolean"
+        },
+        "desired_kl": {
+          "default": 0.01,
+          "description": "Target KL divergence used by the adaptive learning-rate schedule.",
+          "title": "Desired Kl",
+          "type": "number"
+        },
+        "entropy_coef": {
+          "default": 0.01,
+          "description": "Entropy regularization coefficient.",
+          "title": "Entropy Coef",
+          "type": "number"
+        },
+        "gamma": {
+          "default": 0.99,
+          "description": "Discount factor.",
+          "title": "Gamma",
+          "type": "number"
+        },
+        "lam": {
+          "default": 0.95,
+          "description": "GAE lambda parameter.",
+          "title": "Lam",
+          "type": "number"
+        },
+        "max_grad_norm": {
+          "default": 1.0,
+          "description": "Maximum gradient norm for gradient clipping.",
+          "title": "Max Grad Norm",
+          "type": "number"
+        },
+        "normalize_advantage_per_mini_batch": {
+          "default": false,
+          "description": "Whether to normalize advantages for each mini-batch instead of across the entire rollout.",
+          "title": "Normalize Advantage Per Mini Batch",
+          "type": "boolean"
+        },
+        "use_mixed_precision": {
+          "default": false,
+          "description": "Whether to run the forward pass and loss computation in bfloat16 autocast. Backward, gradient clipping, and the optimizer step always stay in fp32.",
+          "title": "Use Mixed Precision",
+          "type": "boolean"
+        },
+        "share_cnn_encoders": {
+          "default": false,
+          "description": "Whether to share the CNN networks between actor and critic in case the `CNNModel` is used.",
+          "title": "Share Cnn Encoders",
+          "type": "boolean"
+        },
+        "rnd_cfg": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/RNDConfig"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Optional RND extension configuration."
+        },
+        "symmetry_cfg": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/SymmetryConfig"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Optional symmetry extension configuration."
+        },
+        "grad_reduce_bucket_mb": {
+          "default": 25.0,
+          "description": "Maximum size, in megabytes, of a single packed gradient buffer used when reducing gradients across GPUs during multi-GPU training. Matches `torch.nn.parallel.DistributedDataParallel`'s default `bucket_cap_mb`.",
+          "title": "Grad Reduce Bucket Mb",
+          "type": "number"
+        }
+      },
+      "title": "PPOConfig",
+      "type": "object"
+    },
+    "RNDConfig": {
+      "additionalProperties": false,
+      "description": "Random Network Distillation extension config.\n\nSource: https://leggedrobotics.github.io/rsl_rl/guide/configuration.html#random-network-distillation",
+      "properties": {
+        "num_outputs": {
+          "description": "Number of outputs of the RND networks.",
+          "title": "Num Outputs",
+          "type": "integer"
+        },
+        "predictor_hidden_dims": {
+          "description": "Hidden dimensions of the RND predictor network.",
+          "items": {
+            "type": "integer"
+          },
+          "title": "Predictor Hidden Dims",
+          "type": "array"
+        },
+        "target_hidden_dims": {
+          "description": "Hidden dimensions of the RND target network.",
+          "items": {
+            "type": "integer"
+          },
+          "title": "Target Hidden Dims",
+          "type": "array"
+        },
+        "activation": {
+          "default": "elu",
+          "description": "Activation function for the RND networks.",
+          "enum": [
+            "elu",
+            "selu",
+            "relu",
+            "crelu",
+            "lrelu",
+            "tanh",
+            "sigmoid",
+            "softplus",
+            "gelu",
+            "swish",
+            "mish",
+            "identity"
+          ],
+          "title": "Activation",
+          "type": "string"
+        },
+        "state_normalization": {
+          "default": false,
+          "description": "Whether to normalize the RND state.",
+          "title": "State Normalization",
+          "type": "boolean"
+        },
+        "reward_normalization": {
+          "default": false,
+          "description": "Whether to normalize the RND reward.",
+          "title": "Reward Normalization",
+          "type": "boolean"
+        },
+        "weight": {
+          "default": 0.0,
+          "description": "Initial weight of the RND reward.",
+          "title": "Weight",
+          "type": "number"
+        },
+        "weight_schedule": {
+          "anyOf": [
+            {
+              "discriminator": {
+                "mapping": {
+                  "constant": "#/$defs/ConstantWeightScheduleConfig",
+                  "linear": "#/$defs/LinearWeightScheduleConfig",
+                  "step": "#/$defs/StepWeightScheduleConfig"
+                },
+                "propertyName": "mode"
+              },
+              "oneOf": [
+                {
+                  "$ref": "#/$defs/ConstantWeightScheduleConfig"
+                },
+                {
+                  "$ref": "#/$defs/StepWeightScheduleConfig"
+                },
+                {
+                  "$ref": "#/$defs/LinearWeightScheduleConfig"
+                }
+              ]
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Weight schedule for the RND reward.",
+          "title": "Weight Schedule"
+        },
+        "learning_rate": {
+          "default": 0.001,
+          "description": "Learning rate for the RND optimizer.",
+          "title": "Learning Rate",
+          "type": "number"
+        }
+      },
+      "required": [
+        "num_outputs",
+        "predictor_hidden_dims",
+        "target_hidden_dims"
+      ],
+      "title": "RNDConfig",
+      "type": "object"
+    },
+    "RNNModelConfig": {
+      "additionalProperties": false,
+      "description": "Recurrent neural network model config.\n\nSource: https://leggedrobotics.github.io/rsl_rl/guide/configuration.html#rnnmodel",
+      "properties": {
+        "distribution_cfg": {
+          "description": "Optional output distribution configuration. If provided, the model can output stochastic values sampled from the specified distribution.",
+          "discriminator": {
+            "mapping": {
+              "BetaDistribution": "#/$defs/BetaDistributionConfig",
+              "GaussianDistribution": "#/$defs/GaussianDistributionConfig",
+              "HeteroscedasticGaussianDistribution": "#/$defs/HeteroscedasticGaussianDistributionConfig"
+            },
+            "propertyName": "class_name"
+          },
+          "oneOf": [
+            {
+              "$ref": "#/$defs/GaussianDistributionConfig"
+            },
+            {
+              "$ref": "#/$defs/HeteroscedasticGaussianDistributionConfig"
+            },
+            {
+              "$ref": "#/$defs/BetaDistributionConfig"
+            }
+          ],
+          "title": "Distribution Cfg"
+        },
+        "hidden_dims": {
+          "description": "Hidden dimensions of the MLP.",
+          "items": {
+            "type": "integer"
+          },
+          "title": "Hidden Dims",
+          "type": "array"
+        },
+        "activation": {
+          "default": "elu",
+          "description": "Activation function of the MLP.",
+          "enum": [
+            "elu",
+            "selu",
+            "relu",
+            "crelu",
+            "lrelu",
+            "tanh",
+            "sigmoid",
+            "softplus",
+            "gelu",
+            "swish",
+            "mish",
+            "identity"
+          ],
+          "title": "Activation",
+          "type": "string"
+        },
+        "obs_normalization": {
+          "default": false,
+          "description": "Whether to normalize the observations before passing them to the MLP.",
+          "title": "Obs Normalization",
+          "type": "boolean"
+        },
+        "class_name": {
+          "const": "RNNModel",
+          "default": "RNNModel",
+          "description": "Model class name.",
+          "title": "Class Name",
+          "type": "string"
+        },
+        "rnn_type": {
+          "default": "lstm",
+          "description": "Type of RNN network.",
+          "enum": [
+            "lstm",
+            "gru"
+          ],
+          "title": "Rnn Type",
+          "type": "string"
+        },
+        "rnn_hidden_dim": {
+          "default": 256,
+          "description": "Hidden dimension of the RNN.",
+          "title": "Rnn Hidden Dim",
+          "type": "integer"
+        },
+        "rnn_num_layers": {
+          "default": 1,
+          "description": "Number of RNN layers.",
+          "title": "Rnn Num Layers",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "distribution_cfg"
+      ],
+      "title": "RNNModelConfig",
+      "type": "object"
+    },
+    "RukaEnvConfig": {
+      "additionalProperties": false,
+      "properties": {
+        "class_name": {
+          "const": "src.env.ruka_env:RukaEnv",
+          "title": "Class Name",
+          "type": "string"
+        },
+        "fingers": {
+          "default": 5,
+          "description": "The number of fingers to use in the environment.",
+          "title": "Fingers",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "class_name"
+      ],
+      "title": "RukaEnvConfig",
+      "type": "object"
+    },
+    "RukaSimConfig": {
+      "additionalProperties": false,
+      "properties": {
+        "class_name": {
+          "const": "src.sim.ruka_sim:RukaSim",
+          "title": "Class Name",
+          "type": "string"
+        },
+        "num_envs": {
+          "default": 1,
+          "description": "The number of environments to simulate.",
+          "title": "Num Envs",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "class_name"
+      ],
+      "title": "RukaSimConfig",
+      "type": "object"
+    },
+    "StepWeightScheduleConfig": {
+      "additionalProperties": false,
+      "description": "Step RND weight schedule config.\n\nSource: https://github.com/leggedrobotics/rsl_rl/blob/main/rsl_rl/extensions/rnd.py",
+      "properties": {
+        "mode": {
+          "const": "step",
+          "default": "step",
+          "description": "Type of schedule to use for the RND weight parameter.",
+          "title": "Mode",
+          "type": "string"
+        },
+        "final_step": {
+          "description": "Step at which the weight parameter is set to the final value.",
+          "title": "Final Step",
+          "type": "integer"
+        },
+        "final_value": {
+          "description": "Final value of the weight parameter.",
+          "title": "Final Value",
+          "type": "number"
+        }
+      },
+      "required": [
+        "final_step",
+        "final_value"
+      ],
+      "title": "StepWeightScheduleConfig",
+      "type": "object"
+    },
+    "SymmetryConfig": {
+      "additionalProperties": false,
+      "description": "Symmetry augmentation extension config.\n\nSource: https://leggedrobotics.github.io/rsl_rl/guide/configuration.html#symmetry-augmentation",
+      "properties": {
+        "use_data_augmentation": {
+          "description": "Whether to add symmetric trajectories to the batch.",
+          "title": "Use Data Augmentation",
+          "type": "boolean"
+        },
+        "data_augmentation_func": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Function to generate symmetric trajectories. Resolved using `resolve_callable()`.",
+          "title": "Data Augmentation Func"
+        },
+        "use_mirror_loss": {
+          "description": "Whether to add a symmetry loss term to the loss function.",
+          "title": "Use Mirror Loss",
+          "type": "boolean"
+        },
+        "mirror_loss_coeff": {
+          "description": "Coefficient for the symmetry loss.",
+          "title": "Mirror Loss Coeff",
+          "type": "number"
+        }
+      },
+      "required": [
+        "use_data_augmentation",
+        "data_augmentation_func",
+        "use_mirror_loss",
+        "mirror_loss_coeff"
+      ],
+      "title": "SymmetryConfig",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "description": "Root configuration for a training run.",
+  "properties": {
+    "runner": {
+      "description": "Configuration for a RSL-RL runner.",
+      "discriminator": {
+        "mapping": {
+          "DistillationRunner": "#/$defs/DistillationRunnerConfig",
+          "OnPolicyRunner": "#/$defs/OnPolicyRunnerConfig"
+        },
+        "propertyName": "class_name"
+      },
+      "oneOf": [
+        {
+          "$ref": "#/$defs/OnPolicyRunnerConfig"
+        },
+        {
+          "$ref": "#/$defs/DistillationRunnerConfig"
+        }
+      ],
+      "title": "Runner"
+    },
+    "env": {
+      "description": "Configuration for the run's environment.",
+      "discriminator": {
+        "mapping": {
+          "src.env.ruka_env:RukaEnv": "#/$defs/RukaEnvConfig"
+        },
+        "propertyName": "class_name"
+      },
+      "oneOf": [
+        {
+          "$ref": "#/$defs/RukaEnvConfig"
+        }
+      ],
+      "title": "Env"
+    },
+    "system": {
+      "description": "Configuration for the run's system.",
+      "discriminator": {
+        "mapping": {
+          "src.sim.ruka_sim:RukaSim": "#/$defs/RukaSimConfig"
+        },
+        "propertyName": "class_name"
+      },
+      "oneOf": [
+        {
+          "$ref": "#/$defs/RukaSimConfig"
+        }
+      ],
+      "title": "System"
+    }
+  },
+  "required": [
+    "runner",
+    "env",
+    "system"
+  ],
+  "title": "TrainingConfig",
+  "type": "object"
+}

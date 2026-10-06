@@ -29,7 +29,7 @@ dependencies = [
 ]
 
 [project.scripts]
-ruka = "scripts.ruka:main"
+train = "scripts.train:main"
 generate_schema = "scripts.generate_schema:main"
 
 [tool.setuptools.packages.find]

@@ -10,7 +10,7 @@ import torch
 from jaxtyping import Float
 from tensordict import TypedTensorDict
 
-from src.base_config import ConfigBase
+from src.base_config import Config
 
 from .vec_system import VecAction, VecSystem
 
@@ -34,8 +34,8 @@ class RukaAction(VecAction):
         return cls(joint_angles=tensor)
 
 
-class RukaSimConfig(ConfigBase):
-    class_name: Literal["RukaSim"] = "RukaSim"
+class RukaSimConfig(Config):
+    class_name: Literal["src.sim.ruka_sim:RukaSim"]
 
     num_envs: int = 1
     """The number of environments to simulate."""
@@ -48,6 +48,8 @@ class RukaSim(VecSystem[RukaState, RukaAction]):
         """Initializes the RukaSim with the specified number of environments."""
         self._num_envs = cfg.num_envs
         self._dt = 1.0 / 60.0
+
+        gs.init()
 
         self._scene = gs.Scene(
             sim_options=gs.options.SimOptions(

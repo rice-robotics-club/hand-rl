@@ -7,7 +7,7 @@ name = "hand-rl"
 version = "0.1.0"
 description = "Rice Robotics Hand Command"
 readme = "README.md"
-requires-python = ">=3.12,<3.13"
+requires-python = ">=3.13"
 dependencies = [
   "numpy",
   "torch",
@@ -23,14 +23,20 @@ dependencies = [
   "cowsay>=6.1",
   "lolcat>=1.4",
   "pretty_midi>=0.2.11,<0.3",
+  "jaxtyping>=0.3.11",
+  "beartype>=0.22.9",
+  "pydantic>=2.13.5",
 ]
 
 [project.scripts]
-ruka = "scripts.ruka_test:main"
+ruka = "scripts.ruka:main"
 
 [tool.setuptools.packages.find]
 where = ["."]
 include = ["scripts*", "src*"]
+
+[tool.setuptools.package-data]
+config = ["*.yaml", "schemas/*.json"]
 
 [project.optional-dependencies]
 sheet = [
@@ -40,5 +46,6 @@ sheet = [
 [dependency-groups]
 dev = [
   "basedpyright>=1.40.1",
+  "docformatter>=1.7.8",
   "ruff>=0.16.8",
 ]

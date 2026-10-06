@@ -2,11 +2,12 @@
 .venv-audio/
 .venv-prototype/
 prototype_runs/
-__pycache__/
+__pycache__
 *.pyc
 *.egg-info/
 .ruff_cache/
 .env
 dist/
 build/
+logs/
 .DS_Store

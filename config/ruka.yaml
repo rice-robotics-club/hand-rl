@@ -1,4 +1,4 @@
-# yaml-language-server: $schema=https://github.com/rice-robotics-club/hand-rl/schema.json
+# yaml-language-server: $schema=https://rice-robotics-club.github.io/hand-rl/schema.json
 runner:
   class_name: OnPolicyRunner
   save_interval: 100

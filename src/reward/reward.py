@@ -1,6 +1,6 @@
 """Reward module for computing total rewards from a list of reward terms."""
 
-from typing import Callable
+from collections.abc import Callable
 
 import torch
 from tensordict import TensorClass, TensorDict, TypedTensorDict
@@ -48,7 +48,7 @@ class RewardFunction[S: _State]:
 
     def __call__(self, state: S) -> torch.Tensor:
         """Computes the total reward for the given state."""
-        self._buf[:] = torch.stack(
-            [self._weights[i] * term(state) for i, term in enumerate(self._terms)]
+        self._buf[:] = (
+            torch.stack([term(state) for term in self._terms], dim=-1) * self._weights
         )
         return self._buf.sum(dim=1)

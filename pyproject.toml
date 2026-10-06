@@ -25,14 +25,18 @@ dependencies = [
   "pretty_midi>=0.2.11,<0.3",
   "jaxtyping>=0.3.11",
   "beartype>=0.22.9",
+  "pydantic>=2.13.5",
 ]
 
 [project.scripts]
-ruka = "scripts.ruka_test:main"
+ruka = "scripts.ruka:main"
 
 [tool.setuptools.packages.find]
 where = ["."]
 include = ["scripts*", "src*"]
+
+[tool.setuptools.package-data]
+config = ["*.yaml", "schemas/*.json"]
 
 [project.optional-dependencies]
 sheet = [
@@ -45,9 +49,3 @@ dev = [
   "docformatter>=1.7.8",
   "ruff>=0.16.8",
 ]
-
-[tool.ruff.lint]
-select = ["D"] # Enable pydocstyle checks
-
-[tool.ruff.lint.pydocstyle]
-convention = "google"

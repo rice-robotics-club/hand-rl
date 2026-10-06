@@ -25,8 +25,6 @@ class VecAction(ABC, TypedTensorDict):
         """Converts an action to a VecAction instance."""
         if isinstance(action, torch.Tensor):
             return cls.from_tensor(action)
-        elif isinstance(action, TensorDict):
-            return cls.from_tensordict(action)
         return action
 
 
@@ -45,7 +43,7 @@ class VecSystem[
 
     Possible implementations include simulations, robot controllers, or games. Allows for abstracting away the dynamics when defining a rsl_rl VecEnv, as well as for defining the structure of the system's state and actions/controls.
 
-    Type variables:
+    Type parameters:
         S: The state type, defaults to TensorDict. Specifying TensorClass or TypedTensorDict also allows defining the state as a structured type.
         A: The action type, defaults to torch.Tensor. Specifying TensorClass or TypedTensorDict also allows defining the action as a structured type.
     """

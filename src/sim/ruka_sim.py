@@ -3,10 +3,14 @@
 Exists as an example implementation of the VecSystem interface.
 """
 
+from typing import Literal
+
 import genesis as gs
 import torch
 from jaxtyping import Float
 from tensordict import TypedTensorDict
+
+from src.base_config import ConfigBase
 
 from .vec_system import VecAction, VecSystem
 
@@ -30,12 +34,19 @@ class RukaAction(VecAction):
         return cls(joint_angles=tensor)
 
 
+class RukaSimConfig(ConfigBase):
+    class_name: Literal["RukaSim"] = "RukaSim"
+
+    num_envs: int = 1
+    """The number of environments to simulate."""
+
+
 class RukaSim(VecSystem[RukaState, RukaAction]):
     """Defines an example Genesis simulation to demonstrate the use of VecSystem."""
 
-    def __init__(self, num_envs: int = 1):
+    def __init__(self, cfg: RukaSimConfig):
         """Initializes the RukaSim with the specified number of environments."""
-        self._num_envs = num_envs
+        self._num_envs = cfg.num_envs
         self._dt = 1.0 / 60.0
 
         self._scene = gs.Scene(

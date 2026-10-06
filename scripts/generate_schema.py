@@ -7,7 +7,7 @@ from pydantic import TypeAdapter
 
 from src.config import Config
 
-schema_dir = Path(__file__).parent.parent
+schema_dir = Path(__file__).parent.parent / "schemas"
 
 schemas = {
     "schema.json": Config,

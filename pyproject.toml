@@ -30,6 +30,7 @@ dependencies = [
 
 [project.scripts]
 ruka = "scripts.ruka:main"
+generate_schema = "scripts.generate_schema:main"
 
 [tool.setuptools.packages.find]
 where = ["."]

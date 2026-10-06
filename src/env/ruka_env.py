@@ -10,8 +10,8 @@ from src.sim import VecSystem
 from src.sim.ruka_sim import RukaAction, RukaState
 
 
-def velocity_norm(state: RukaState) -> torch.Tensor:
-    """Returns the velocity norm of the state."""
+def velocity_norm(state: RukaState, _: RukaAction) -> torch.Tensor:
+    """Reward correlates with the magnitude of velocity."""
     return state.velocity.norm(dim=-1)
 
 
@@ -29,7 +29,7 @@ class RukaEnv(VecEnv):
         self.num_actions = 27
         self.device = "cuda" if torch.cuda.is_available() else "cpu"
         self.cfg = cfg
-        self._reward = RewardFunction[RukaState](
+        self._reward = RewardFunction[RukaState, RukaAction](
             [velocity_norm], batch_size=sim.num_envs
         )
 
@@ -37,8 +37,9 @@ class RukaEnv(VecEnv):
         return self._sim.state
 
     def step(self, actions: Tensor):
-        self._sim.step(RukaAction.from_tensor(actions))
-        rewards = self._reward(self._sim.state)
+        actions = RukaAction.from_tensor(actions)
+        self._sim.step(actions)
+        rewards = self._reward(self._sim.state, actions)
         return (
             self._sim.state,
             rewards,

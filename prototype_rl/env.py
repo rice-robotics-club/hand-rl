@@ -18,6 +18,8 @@ class PrototypeFingerEnv(VecEnv):
     def __init__(self, notes, *, num_envs=32, device="cpu", dt=0.05,
                  bend_speed=4.0, press_threshold=0.75, lookahead_steps=6,
                  lead_in_seconds=0.5, release_tail_seconds=0.5):
+
+        # validate the input parameters to ensure they are within acceptable ranges
         for name, value in (("dt", dt), ("bend_speed", bend_speed),
                             ("lead_in_seconds", lead_in_seconds),
                             ("release_tail_seconds", release_tail_seconds)):
@@ -29,19 +31,30 @@ class PrototypeFingerEnv(VecEnv):
             raise ValueError("lookahead_steps must be a positive integer")
         if not 0 < press_threshold < 1:
             raise ValueError("press_threshold must lie between 0 and 1")
+
+        # convert the target notes into a plan that specifies which fingers should be pressed at each time step
         plan = notes_to_fingers(notes)
         if not plan["notes"]:
             raise ValueError("Training needs at least one target note")
+
+        # initialize the environment's parameters and state variables
         self.num_envs, self.device = num_envs, torch.device(device)
         self.dt, self.bend_speed = dt, bend_speed
         self.press_threshold, self.lookahead_steps = press_threshold, lookahead_steps
+
+        # create a configuration dictionary that specifies the environment's parameters and settings
         self.cfg = dict(prototype=True, model="abstract_bends_without_physics",
                         keys=list(DEFAULT_KEYS), num_envs=num_envs, dt=dt,
                         bend_speed=bend_speed, press_threshold=press_threshold,
                         lookahead_steps=lookahead_steps, lead_in_seconds=lead_in_seconds,
                         release_tail_seconds=release_tail_seconds)
+
+        # max episode length = lead-in + score duration + release tail, converted to time steps
         end = max(n["start"] + n["duration"] for n in plan["notes"])
         self.max_episode_length = math.ceil((lead_in_seconds + end + release_tail_seconds) / dt)
+
+        # target states
+        # each row is a time step, each column is a finger; 1 means pressed, 0 means raised
         self.targets = torch.zeros(self.max_episode_length + lookahead_steps, 5, device=self.device)
         for n in plan["notes"]:
             start = math.ceil((n["start"] + lead_in_seconds) / dt - 1e-9)
@@ -49,6 +62,9 @@ class PrototypeFingerEnv(VecEnv):
             if stop <= start:
                 raise ValueError("A note is shorter than the time grid; reduce dt")
             self.targets[start:stop, n["finger"] - 1] = 1
+
+        # initialize the episode length buffer, bend state, velocity, and last action for each environment instance
+        # these are just big arrays that store that info for each of the parallel environments, and they are updated at each step
         self.episode_length_buf = torch.zeros(num_envs, dtype=torch.long, device=self.device)
         self.bend = torch.zeros(num_envs, 5, device=self.device)
         self.velocity = torch.zeros_like(self.bend)

@@ -1278,10 +1278,24 @@
           "type": "string"
         },
         "fingers": {
+          "const": 5,
           "default": 5,
           "description": "The number of fingers to use in the environment.",
           "title": "Fingers",
           "type": "integer"
+        },
+        "notes_path": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "JSON list of (start seconds, duration seconds, MIDI pitch); None is an empty score.",
+          "title": "Notes Path"
         }
       },
       "required": [
@@ -1301,8 +1315,32 @@
         "num_envs": {
           "default": 1,
           "description": "The number of environments to simulate.",
+          "exclusiveMinimum": 0,
           "title": "Num Envs",
           "type": "integer"
+        },
+        "control_dt": {
+          "default": 0.016666666666666666,
+          "description": "Simulated seconds advanced by each VecSystem.step call.",
+          "exclusiveMinimum": 0,
+          "title": "Control Dt",
+          "type": "number"
+        },
+        "physics_substeps": {
+          "default": 2,
+          "description": "Internal physics steps per control step; not policy decisions.",
+          "minimum": 1,
+          "title": "Physics Substeps",
+          "type": "integer"
+        },
+        "key_pitches": {
+          "description": "Keyboard observation order, initially C4 through G4 on white keys.",
+          "items": {
+            "type": "integer"
+          },
+          "minItems": 1,
+          "title": "Key Pitches",
+          "type": "array"
         }
       },
       "required": [

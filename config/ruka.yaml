@@ -7,10 +7,36 @@ runner:
       - position
       - velocity
       - orientation
+      - joint_positions
+      - joint_velocities
+      - fingertip_positions
+      - fingertip_valid
+      - key_pitches
+      - key_displacement
+      - key_pressed
+      - key_valid
+      - target_active
+      - target_remaining
+      - next_note_valid
+      - next_note_time
+      - next_note_duration
     critic:
       - position
       - velocity
       - orientation
+      - joint_positions
+      - joint_velocities
+      - fingertip_positions
+      - fingertip_valid
+      - key_pitches
+      - key_displacement
+      - key_pressed
+      - key_valid
+      - target_active
+      - target_remaining
+      - next_note_valid
+      - next_note_time
+      - next_note_duration
   num_steps_per_env: 24
   algorithm:
     class_name: PPO
@@ -24,7 +50,11 @@ runner:
       class_name: GaussianDistribution
 env:
   class_name: src.env.ruka_env:RukaEnv
-  fingers: 100
+  fingers: 5
+  notes_path: null  # Set to a converter's JSON note tuples to load a score.
 system:
   class_name: src.sim.ruka_sim:RukaSim
   num_envs: 100
+  control_dt: 0.016666666666666666  # 60 policy decisions per simulated second
+  physics_substeps: 2
+  key_pitches: [60, 62, 64, 65, 67]

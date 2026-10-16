@@ -18,7 +18,7 @@ dependencies = [
   "jsonschema-gentypes",
   "tensordict",
   "pygame",
-  "genesis-world @ git+https://github.com/Genesis-Embodied-AI/Genesis.git",
+  "genesis-world[render] @ git+https://github.com/Genesis-Embodied-AI/Genesis.git",
   "rsl-rl-lib==5.*",
   "cowsay>=6.1",
   "lolcat>=1.4",
@@ -26,15 +26,20 @@ dependencies = [
   "jaxtyping>=0.3.11",
   "beartype>=0.22.9",
   "pydantic>=2.13.5",
+  "robopianist",
 ]
+
+[tool.uv.sources]
+robopianist = { path = "robots/robopianist", editable = true }
 
 [project.scripts]
 train = "scripts.train:main"
+evaluate = "scripts.evaluate:main"
 generate_schema = "scripts.generate_schema:main"
 
 [tool.setuptools.packages.find]
 where = ["."]
-include = ["scripts*", "src*"]
+include = ["scripts*", "src*", "robots*"]
 
 [tool.setuptools.package-data]
 config = ["*.yaml", "schemas/*.json"]
@@ -50,3 +55,20 @@ dev = [
   "docformatter>=1.7.8",
   "ruff>=0.16.8",
 ]
+
+[tool.uv]
+override-dependencies = ["scikit-learn>=1.5", "labmaze; python_version < '0'"]
+
+[tool.basedpyright]
+venvPath = "."
+venv = ".venv"
+extraPaths = ["robots/robopianist"]
+exclude = ["robots", "third_party", ".venv"]
+
+# Silence diagnostics caused by untyped third-party libraries (genesis, rsl_rl, etc.)
+reportMissingTypeStubs = "none"
+reportUnknownMemberType = "none"
+reportUnknownVariableType = "none"
+reportUnknownArgumentType = "none"
+reportUnknownParameterType = "none"
+reportUnknownLambdaType = "none"

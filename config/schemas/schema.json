@@ -1,5 +1,49 @@
 {
   "$defs": {
+    "AmbientLight": {
+      "additionalProperties": false,
+      "properties": {
+        "type": {
+          "const": "ambient",
+          "default": "ambient",
+          "title": "Type",
+          "type": "string"
+        },
+        "color": {
+          "maxItems": 3,
+          "minItems": 3,
+          "prefixItems": [
+            {
+              "maximum": 1.0,
+              "minimum": 0.0,
+              "type": "number"
+            },
+            {
+              "maximum": 1.0,
+              "minimum": 0.0,
+              "type": "number"
+            },
+            {
+              "maximum": 1.0,
+              "minimum": 0.0,
+              "type": "number"
+            }
+          ],
+          "title": "Color",
+          "type": "array"
+        },
+        "intensity": {
+          "title": "Intensity",
+          "type": "number"
+        }
+      },
+      "required": [
+        "color",
+        "intensity"
+      ],
+      "title": "AmbientLight",
+      "type": "object"
+    },
     "BetaDistributionConfig": {
       "additionalProperties": false,
       "description": "Beta distribution config.\n\nSource: https://leggedrobotics.github.io/rsl_rl/guide/configuration.html#betadistribution",
@@ -198,26 +242,34 @@
       "description": "Convolutional neural network model config.\n\nSource: https://leggedrobotics.github.io/rsl_rl/guide/configuration.html#cnnmodel",
       "properties": {
         "distribution_cfg": {
-          "description": "Optional output distribution configuration. If provided, the model can output stochastic values sampled from the specified distribution.",
-          "discriminator": {
-            "mapping": {
-              "BetaDistribution": "#/$defs/BetaDistributionConfig",
-              "GaussianDistribution": "#/$defs/GaussianDistributionConfig",
-              "HeteroscedasticGaussianDistribution": "#/$defs/HeteroscedasticGaussianDistributionConfig"
-            },
-            "propertyName": "class_name"
-          },
-          "oneOf": [
+          "anyOf": [
             {
-              "$ref": "#/$defs/GaussianDistributionConfig"
+              "discriminator": {
+                "mapping": {
+                  "BetaDistribution": "#/$defs/BetaDistributionConfig",
+                  "GaussianDistribution": "#/$defs/GaussianDistributionConfig",
+                  "HeteroscedasticGaussianDistribution": "#/$defs/HeteroscedasticGaussianDistributionConfig"
+                },
+                "propertyName": "class_name"
+              },
+              "oneOf": [
+                {
+                  "$ref": "#/$defs/GaussianDistributionConfig"
+                },
+                {
+                  "$ref": "#/$defs/HeteroscedasticGaussianDistributionConfig"
+                },
+                {
+                  "$ref": "#/$defs/BetaDistributionConfig"
+                }
+              ]
             },
             {
-              "$ref": "#/$defs/HeteroscedasticGaussianDistributionConfig"
-            },
-            {
-              "$ref": "#/$defs/BetaDistributionConfig"
+              "type": "null"
             }
           ],
+          "default": null,
+          "description": "Optional output distribution configuration. If provided, the model can output stochastic values sampled from the specified distribution.",
           "title": "Distribution Cfg"
         },
         "hidden_dims": {
@@ -281,9 +333,6 @@
           "title": "Cnn Cfg"
         }
       },
-      "required": [
-        "distribution_cfg"
-      ],
       "title": "CNNModelConfig",
       "type": "object"
     },
@@ -300,6 +349,68 @@
         }
       },
       "title": "ConstantWeightScheduleConfig",
+      "type": "object"
+    },
+    "DirectionalLight": {
+      "additionalProperties": false,
+      "properties": {
+        "type": {
+          "const": "directional",
+          "default": "directional",
+          "title": "Type",
+          "type": "string"
+        },
+        "dir": {
+          "maxItems": 3,
+          "minItems": 3,
+          "prefixItems": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "number"
+            },
+            {
+              "type": "number"
+            }
+          ],
+          "title": "Dir",
+          "type": "array"
+        },
+        "color": {
+          "maxItems": 3,
+          "minItems": 3,
+          "prefixItems": [
+            {
+              "maximum": 1.0,
+              "minimum": 0.0,
+              "type": "number"
+            },
+            {
+              "maximum": 1.0,
+              "minimum": 0.0,
+              "type": "number"
+            },
+            {
+              "maximum": 1.0,
+              "minimum": 0.0,
+              "type": "number"
+            }
+          ],
+          "title": "Color",
+          "type": "array"
+        },
+        "intensity": {
+          "title": "Intensity",
+          "type": "number"
+        }
+      },
+      "required": [
+        "dir",
+        "color",
+        "intensity"
+      ],
+      "title": "DirectionalLight",
       "type": "object"
     },
     "DistillationConfig": {
@@ -582,6 +693,312 @@
       "title": "GaussianDistributionConfig",
       "type": "object"
     },
+    "HandPianoConfig": {
+      "additionalProperties": false,
+      "properties": {
+        "genesis": {
+          "$ref": "#/$defs/_GenesisConfig",
+          "default": {
+            "sim_options": {
+              "dt": 0.01,
+              "floor_height": 0.0,
+              "gravity": [
+                0.0,
+                0.0,
+                -9.81
+              ],
+              "requires_grad": false,
+              "substeps": 1,
+              "substeps_local": 1
+            },
+            "rigid_options": {
+              "IK_max_targets": 6,
+              "batch_dofs_info": false,
+              "batch_joints_info": false,
+              "batch_links_info": false,
+              "box_box_detection": false,
+              "broadphase_traversal": null,
+              "constraint_solver": 1,
+              "constraint_timeconst": 0.01,
+              "contact_pruning_tolerance": 0.02,
+              "contact_resolution": null,
+              "disable_constraint": false,
+              "dt": null,
+              "enable_adjacent_collision": false,
+              "enable_collision": true,
+              "enable_contact_patch": null,
+              "enable_joint_limit": true,
+              "enable_mujoco_compatibility": false,
+              "enable_multi_contact": true,
+              "enable_neutral_collision": false,
+              "enable_rolling_friction": false,
+              "enable_self_collision": true,
+              "enable_torsional_friction": false,
+              "friction_cone": 0,
+              "gravity": null,
+              "hibernation_thresh_vel": null,
+              "impratio": null,
+              "integrator": 2,
+              "iterations": 50,
+              "ls_iterations": 50,
+              "ls_tolerance": 0.01,
+              "max_collision_pairs": 150,
+              "max_contacts": null,
+              "max_dynamic_constraints": 8,
+              "multiplier_collision_broad_phase": 8,
+              "noslip_iterations": 0,
+              "noslip_tolerance": 1e-06,
+              "sparse_solve": null,
+              "tolerance": null,
+              "use_gjk_collision": null,
+              "use_hibernation": false
+            },
+            "vis_options": {
+              "ambient_light": [
+                0.1,
+                0.1,
+                0.1
+              ],
+              "background_color": [
+                0.04,
+                0.08,
+                0.12
+              ],
+              "contact_force_scale": 0.01,
+              "lights": [
+                {
+                  "color": [
+                    1.0,
+                    1.0,
+                    1.0
+                  ],
+                  "dir": [
+                    -1.0,
+                    -1.0,
+                    -1.0
+                  ],
+                  "intensity": 5.0,
+                  "type": "directional"
+                }
+              ],
+              "link_frame_size": 0.2,
+              "n_support_neighbors": 12,
+              "particle_size_scale": 1.0,
+              "plane_reflection": false,
+              "render_particle_as": "sphere",
+              "rendered_envs_idx": null,
+              "segmentation_level": "link",
+              "shadow": true,
+              "show_cameras": false,
+              "show_link_frame": false,
+              "show_world_frame": false,
+              "split_envs": false,
+              "visualize_mpm_boundary": false,
+              "visualize_pbd_boundary": false,
+              "visualize_sph_boundary": false,
+              "world_frame_size": 1.0
+            },
+            "viewer_options": {
+              "camera_fov": 40.0,
+              "camera_lookat": [
+                0.0,
+                0.0,
+                0.5
+              ],
+              "camera_pos": [
+                3.5,
+                0.5,
+                2.5
+              ],
+              "camera_up": [
+                0.0,
+                0.0,
+                1.0
+              ],
+              "enable_default_keybinds": true,
+              "enable_gui": false,
+              "enable_help_text": true,
+              "max_FPS": null,
+              "realtime_factor": 1.0,
+              "refresh_rate": 60,
+              "res": null,
+              "run_in_thread": null
+            },
+            "show_viewer": true,
+            "show_FPS": false
+          }
+        },
+        "num_envs": {
+          "default": 1,
+          "description": "The number of environments to simulate.",
+          "title": "Num Envs",
+          "type": "integer"
+        },
+        "class_name": {
+          "const": "src.sim.hand_piano:HandPiano",
+          "title": "Class Name",
+          "type": "string"
+        },
+        "workspace": {
+          "default": 2.0,
+          "description": "Base position targets are clamped to [-workspace, workspace] on each axis.",
+          "title": "Workspace",
+          "type": "number"
+        },
+        "initial_position": {
+          "default": [
+            0.0,
+            0.0,
+            1.0
+          ],
+          "description": "The initial position of the hand base.",
+          "maxItems": 3,
+          "minItems": 3,
+          "prefixItems": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "number"
+            },
+            {
+              "type": "number"
+            }
+          ],
+          "title": "Initial Position",
+          "type": "array"
+        },
+        "action_scale": {
+          "default": 0.5,
+          "description": "Scale applied to actions before adding them to the default pose.",
+          "title": "Action Scale",
+          "type": "number"
+        },
+        "base_kp": {
+          "default": [
+            500.0,
+            50.0
+          ],
+          "description": "PD position gains for the base (translation, rotation).",
+          "maxItems": 2,
+          "minItems": 2,
+          "prefixItems": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "number"
+            }
+          ],
+          "title": "Base Kp",
+          "type": "array"
+        },
+        "base_kv": {
+          "default": [
+            50.0,
+            5.0
+          ],
+          "description": "PD velocity gains for the base (translation, rotation).",
+          "maxItems": 2,
+          "minItems": 2,
+          "prefixItems": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "number"
+            }
+          ],
+          "title": "Base Kv",
+          "type": "array"
+        },
+        "piano": {
+          "$ref": "#/$defs/PianoConfig",
+          "description": "The configuration for the piano simulation."
+        }
+      },
+      "required": [
+        "class_name",
+        "piano"
+      ],
+      "title": "HandPianoConfig",
+      "type": "object"
+    },
+    "HandPianoEnvConfig": {
+      "additionalProperties": false,
+      "properties": {
+        "class_name": {
+          "const": "src.env.hand_piano:HandPianoEnv",
+          "title": "Class Name",
+          "type": "string"
+        },
+        "max_episode_length": {
+          "default": 250,
+          "description": "The number of steps before an environment times out and is reset.",
+          "title": "Max Episode Length",
+          "type": "integer"
+        },
+        "target_center": {
+          "default": [
+            0.0,
+            0.0,
+            1.0
+          ],
+          "description": "The center of the region in which reaching targets are sampled.",
+          "maxItems": 3,
+          "minItems": 3,
+          "prefixItems": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "number"
+            },
+            {
+              "type": "number"
+            }
+          ],
+          "title": "Target Center",
+          "type": "array"
+        },
+        "target_range": {
+          "default": [
+            0.3,
+            0.3,
+            0.2
+          ],
+          "description": "The half-extents of the region in which reaching targets are sampled.",
+          "maxItems": 3,
+          "minItems": 3,
+          "prefixItems": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "number"
+            },
+            {
+              "type": "number"
+            }
+          ],
+          "title": "Target Range",
+          "type": "array"
+        },
+        "reward_weights": {
+          "additionalProperties": {
+            "type": "number"
+          },
+          "description": "The weights for each reward term, keyed by the term's name.",
+          "title": "Reward Weights",
+          "type": "object"
+        }
+      },
+      "required": [
+        "class_name"
+      ],
+      "title": "HandPianoEnvConfig",
+      "type": "object"
+    },
     "HeteroscedasticGaussianDistributionConfig": {
       "additionalProperties": false,
       "description": "Heteroscedastic Gaussian distribution config.\n\nSource: https://leggedrobotics.github.io/rsl_rl/guide/configuration.html#heteroscedasticgaussiandistribution",
@@ -698,26 +1115,34 @@
       "description": "Multi-layer perceptron model config.\n\nSource: https://leggedrobotics.github.io/rsl_rl/guide/configuration.html#mlpmodel",
       "properties": {
         "distribution_cfg": {
-          "description": "Optional output distribution configuration. If provided, the model can output stochastic values sampled from the specified distribution.",
-          "discriminator": {
-            "mapping": {
-              "BetaDistribution": "#/$defs/BetaDistributionConfig",
-              "GaussianDistribution": "#/$defs/GaussianDistributionConfig",
-              "HeteroscedasticGaussianDistribution": "#/$defs/HeteroscedasticGaussianDistributionConfig"
-            },
-            "propertyName": "class_name"
-          },
-          "oneOf": [
+          "anyOf": [
             {
-              "$ref": "#/$defs/GaussianDistributionConfig"
+              "discriminator": {
+                "mapping": {
+                  "BetaDistribution": "#/$defs/BetaDistributionConfig",
+                  "GaussianDistribution": "#/$defs/GaussianDistributionConfig",
+                  "HeteroscedasticGaussianDistribution": "#/$defs/HeteroscedasticGaussianDistributionConfig"
+                },
+                "propertyName": "class_name"
+              },
+              "oneOf": [
+                {
+                  "$ref": "#/$defs/GaussianDistributionConfig"
+                },
+                {
+                  "$ref": "#/$defs/HeteroscedasticGaussianDistributionConfig"
+                },
+                {
+                  "$ref": "#/$defs/BetaDistributionConfig"
+                }
+              ]
             },
             {
-              "$ref": "#/$defs/HeteroscedasticGaussianDistributionConfig"
-            },
-            {
-              "$ref": "#/$defs/BetaDistributionConfig"
+              "type": "null"
             }
           ],
+          "default": null,
+          "description": "Optional output distribution configuration. If provided, the model can output stochastic values sampled from the specified distribution.",
           "title": "Distribution Cfg"
         },
         "hidden_dims": {
@@ -762,10 +1187,27 @@
           "type": "string"
         }
       },
-      "required": [
-        "distribution_cfg"
-      ],
       "title": "MLPModelConfig",
+      "type": "object"
+    },
+    "NullEnvConfig": {
+      "additionalProperties": false,
+      "properties": {
+        "class_name": {
+          "const": "src.env.null:NullEnv",
+          "title": "Class Name",
+          "type": "string"
+        },
+        "print_state": {
+          "default": false,
+          "title": "Print State",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "class_name"
+      ],
+      "title": "NullEnvConfig",
       "type": "object"
     },
     "OnPolicyRunnerConfig": {
@@ -1063,6 +1505,83 @@
       "title": "PPOConfig",
       "type": "object"
     },
+    "PianoConfig": {
+      "additionalProperties": false,
+      "properties": {
+        "class_name": {
+          "const": "src.sim.piano:Piano",
+          "title": "Class Name",
+          "type": "string"
+        }
+      },
+      "required": [
+        "class_name"
+      ],
+      "title": "PianoConfig",
+      "type": "object"
+    },
+    "PointLight": {
+      "additionalProperties": false,
+      "properties": {
+        "type": {
+          "const": "point",
+          "default": "point",
+          "title": "Type",
+          "type": "string"
+        },
+        "pos": {
+          "maxItems": 3,
+          "minItems": 3,
+          "prefixItems": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "number"
+            },
+            {
+              "type": "number"
+            }
+          ],
+          "title": "Pos",
+          "type": "array"
+        },
+        "color": {
+          "maxItems": 3,
+          "minItems": 3,
+          "prefixItems": [
+            {
+              "maximum": 1.0,
+              "minimum": 0.0,
+              "type": "number"
+            },
+            {
+              "maximum": 1.0,
+              "minimum": 0.0,
+              "type": "number"
+            },
+            {
+              "maximum": 1.0,
+              "minimum": 0.0,
+              "type": "number"
+            }
+          ],
+          "title": "Color",
+          "type": "array"
+        },
+        "intensity": {
+          "title": "Intensity",
+          "type": "number"
+        }
+      },
+      "required": [
+        "pos",
+        "color",
+        "intensity"
+      ],
+      "title": "PointLight",
+      "type": "object"
+    },
     "RNDConfig": {
       "additionalProperties": false,
       "description": "Random Network Distillation extension config.\n\nSource: https://leggedrobotics.github.io/rsl_rl/guide/configuration.html#random-network-distillation",
@@ -1177,26 +1696,34 @@
       "description": "Recurrent neural network model config.\n\nSource: https://leggedrobotics.github.io/rsl_rl/guide/configuration.html#rnnmodel",
       "properties": {
         "distribution_cfg": {
-          "description": "Optional output distribution configuration. If provided, the model can output stochastic values sampled from the specified distribution.",
-          "discriminator": {
-            "mapping": {
-              "BetaDistribution": "#/$defs/BetaDistributionConfig",
-              "GaussianDistribution": "#/$defs/GaussianDistributionConfig",
-              "HeteroscedasticGaussianDistribution": "#/$defs/HeteroscedasticGaussianDistributionConfig"
-            },
-            "propertyName": "class_name"
-          },
-          "oneOf": [
+          "anyOf": [
             {
-              "$ref": "#/$defs/GaussianDistributionConfig"
+              "discriminator": {
+                "mapping": {
+                  "BetaDistribution": "#/$defs/BetaDistributionConfig",
+                  "GaussianDistribution": "#/$defs/GaussianDistributionConfig",
+                  "HeteroscedasticGaussianDistribution": "#/$defs/HeteroscedasticGaussianDistributionConfig"
+                },
+                "propertyName": "class_name"
+              },
+              "oneOf": [
+                {
+                  "$ref": "#/$defs/GaussianDistributionConfig"
+                },
+                {
+                  "$ref": "#/$defs/HeteroscedasticGaussianDistributionConfig"
+                },
+                {
+                  "$ref": "#/$defs/BetaDistributionConfig"
+                }
+              ]
             },
             {
-              "$ref": "#/$defs/HeteroscedasticGaussianDistributionConfig"
-            },
-            {
-              "$ref": "#/$defs/BetaDistributionConfig"
+              "type": "null"
             }
           ],
+          "default": null,
+          "description": "Optional output distribution configuration. If provided, the model can output stochastic values sampled from the specified distribution.",
           "title": "Distribution Cfg"
         },
         "hidden_dims": {
@@ -1263,10 +1790,330 @@
           "type": "integer"
         }
       },
-      "required": [
-        "distribution_cfg"
-      ],
       "title": "RNNModelConfig",
+      "type": "object"
+    },
+    "RigidOptions": {
+      "additionalProperties": false,
+      "description": "Options configuring the RigidSolver.\n\nParameters\n----------\nenable_collision : bool, optional\n    Whether to enable collision detection. Defaults to True.\nenable_joint_limit : bool, optional\n    Whether to enable joint limit. Defaults to True.\nenable_self_collision : bool, optional\n    Whether to enable self collision within each entity. Defaults to True.\nenable_neutral_collision : bool, optional\n    Whether to enable self collision occurring in neutral configuration (qpos0) within each entity. Defaults to\n    False.\nenable_adjacent_collision : bool, optional\n    Whether to enable collision between successive parent-child body pairs within each entity. Defaults to False.\ndisable_constraint: bool, optional\n    Whether to disable all constraints. Defaults to False.\nmax_collision_pairs : int, optional\n    Maximum number of collision pairs. Defaults to 100.\nmax_contacts : int, optional\n    Maximum number of simultaneous contact points per environment that the constraint solver can handle, which\n    determines the size of the contact constraint buffers (3 to 10 constraint rows per contact point depending on\n    'friction_cone', 'enable_torsional_friction', and 'enable_rolling_friction'). Defaults to None.\n\n    This limit applies to the final contact points after pruning, not to the candidate contact points that\n    collision detection can emit (see 'max_collision_pairs'). Exceeding it at runtime halts the simulation with\n    an error. None resolves it automatically: the pre-pruning worst case or, when contact pruning is enabled\n    (see 'contact_pruning_tolerance'), 32 contact points per candidate link pair but no less than 512, whichever\n    is smaller.\nintegrator : gs.integrator, optional\n    Integrator type. Current supported integrators are 'gs.integrator.Euler', 'gs.integrator.implicitfast' and\n    'gs.integrator.approximate_implicitfast'. 'Euler' and 'implicitfast' are consistent with their Mujoco\n    counterpart. 'approximate_implicitfast' is an even faster approximation of 'implicitfast', which avoid\n    computing the inverse mass matrix twice by considering the first order correction terms of the implicit\n    integration scheme systematically, including for computing the acceleration resulting from the constraints\n    and external forces. Although this approximation is wrong in theory, it works reasonably well in practice.\n    Defaults to 'approximate_implicitfast'.\nIK_max_targets : int, optional\n    Maximum number of IK targets. Increasing this doesn't affect IK solving speed, but will increase memory usage.\n    Defaults to 6.\nbatch_links_info : bool, optional\n    Whether the model parameters of a link, such as its mass or its inertia, are stored per environment rather\n    than shared by the whole batch. Storing them per environment is what lets each environment carry its own\n    values, which domain randomization needs, and what makes a per-environment write possible at all. It costs one\n    copy of every link parameter per environment, in memory and in the bandwidth to read it, which slows down the\n    memory-bound kernels. Automatically enabled for heterogeneous simulation. Defaults to False.\nbatch_joints_info : bool, optional\n    Whether the model parameters of a joint are stored per environment rather than shared by the whole batch,\n    with the same tradeoff as `batch_links_info`. Defaults to False.\nbatch_dofs_info : bool, optional\n    Whether the model parameters of a degree of freedom are stored per environment rather than shared by the\n    whole batch, with the same tradeoff as `batch_links_info`. Defaults to False.\nconstraint_solver : gs.constraint_solver, optional\n    Constraint solver type. Current supported constraint solvers are 'gs.constraint_solver.CG' (conjugate gradient)\n    and 'gs.constraint_solver.Newton' (Newton's method). Defaults to 'Newton'.\niterations : int, optional\n    Maximum number of iterations for the constraint solver; the solve exits early once its convergence tolerance\n    is met, so this bound only binds on hard steps. Defaults to 50.\ntolerance : float, optional\n    Tolerance for the constraint solver. If None, resolved based on the floating-point precision selected via\n    `gs.init(precision=...)`: 1e-5 for single precision (\"32\") and 1e-8 for double precision (\"64\"). Defaults\n    to None.\nls_iterations : int, optional\n    Number of line search iterations for the constraint solver. Defaults to 50.\nls_tolerance : float, optional\n    Tolerance for the line search. Defaults to 1e-2.\nnoslip_iterations : int, optional\n    Number of iterations for the noslip solver. Defaults to 0 (disabled).\n    noslip is a post-processing step after the main solver to suppress slip/drift.\n    Recommended to set this value to 5 for manipulation tasks or when slip/drift is a big problem.\n    This option should only be enabled if necessary because it is experimental and will slow down the simulation.\nnoslip_tolerance : float, optional\n    Tolerance for the noslip solver. Defaults to 1e-6.\nfriction_cone : gs.friction_cone, optional\n    Contact friction cone model, trading numerical robustness for physical accuracy. 'gs.friction_cone.pyramidal'\n    (default) is robust and easy to solve; 'gs.friction_cone.elliptic' is the exact isotropic cone, harder to solve\n    but paired with a high 'impratio' it holds resting stacks without slow tangential creep. See 'gs.friction_cone'\n    for the description of each model. Unsupported with the noslip solver or differentiable simulation.\ncontact_resolution : gs.contact_resolution, optional\n    How a contact's normal force and friction force are resolved against each other.\n    'gs.contact_resolution.signorini' bounds friction against the normal force the contact has developed, so sliding\n    never inflates it and a body launched horizontally decelerates at mu * g instead of lifting off, at the cost of\n    extra solver iterations. 'gs.contact_resolution.convex' poses the contact as a single convex program, which\n    converges more predictably on stiff scenes but lets fast sliding buy normal force. See 'gs.contact_resolution'\n    for the description of each model. Defaults to None, resolving to 'signorini' with the elliptic cone and the\n    Newton solver, and 'convex' otherwise - the pyramidal cone's rows do not separate, and the conjugate gradient\n    solver does not reach the fixed point. Always 'convex' when 'enable_mujoco_compatibility' is set.\nenable_torsional_friction : bool, optional\n    Whether contacts also resist relative spin about their normal, with strength set per geometry by the material\n    option 'friction_torsional' (see 'gs.materials.Rigid'). Enable it when spin resistance matters - a grasped\n    object twisting in a gripper, a top spinning in place - motions a point contact transmits no torque against,\n    so they persist indefinitely otherwise. The extra spin resistance slows down the constraint solve on every\n    contact, including those where spin is irrelevant. Defaults to False.\nenable_rolling_friction : bool, optional\n    Whether contacts also resist rolling, with strength set per geometry by the material option 'friction_rolling'\n    (see 'gs.materials.Rigid'). Enable it when rolling resistance matters - a ball or wheel coasting to rest, a\n    cylinder settling on a slope - motions a point contact otherwise never slows down. The extra rolling\n    resistance slows down the constraint solve on every contact, more so than torsional friction (two extra axes),\n    and requires 'enable_torsional_friction'. Defaults to False.\nimpratio : float, optional\n    Ratio of tangential (friction) to normal constraint impedance at contacts. Raising it above 1 stiffens\n    friction so resting stacks and piles hold their pose under sustained shear, at the cost of a slower solve that\n    turns numerically unstable once pushed too far - a stiffness-versus-stability tradeoff, so use the smallest\n    value that holds the contacts. It matters mainly with the elliptic cone, which stiffens friction alone while\n    leaving the normal contact response at its own impedance. Defaults to None, resolving to 100 with the elliptic\n    cone (1 when 'enable_mujoco_compatibility' is set) and 1 otherwise.\nsparse_solve : bool, optional\n    Whether to exploit sparsity (skyline-envelope Cholesky) in the constraint solver.\n\n    Defaults to None, which resolves automatically: enabled on the CPU backend (and not under MuJoCo compatibility)\n    when the scene has block structure - at least two DOF-carrying bodies or at least two free joints - so the\n    Hessian band stays much tighter than its dimension. Never enabled on GPU, where the dense tiled factorization\n    is faster. Set True or False to override the automatic choice; True is ignored with a warning on GPU.\ncontact_resolve_time : float, optional\n    Please note that this option will be deprecated in a future version. Use 'constraint_timeconst'\n    instead.\nconstraint_timeconst : float | None\n    Time constant of the constraint response, in seconds, used for every geom that does not carry one of its\n    own. The smaller it is, the stiffer the constraint, down to a floor of twice the integration interval, below\n    which the solve becomes unstable. Set it to None to leave those geoms at that floor: as stiff as the timestep\n    allows, and what a model authoring its own values expects, at the cost of contacts that respond more abruptly. This parameter is called\n    'timeconst' in Mujoco (https://mujoco.readthedocs.io/en/latest/modeling.html#solver-parameters). Defaults to\n    0.01.\nuse_hibernation : bool, optional\n    Whether to put bodies that have come to rest to sleep, so the solver skips them until they are disturbed. It\n    quietly has no effect on a body that is differentiable, prunable, or under no-slip friction. Defaults to False.\nhibernation_thresh_vel : float, optional\n    Velocity tolerance for hibernation, in meters per second: a body sleeps once its maximum DOF speed stays below\n    this for a few consecutive steps, and a whole island sleeps once all its bodies are ready. Each rotational DOF\n    is weighted by the body's swept radius, so the tolerance is a single linear speed that applies uniformly to\n    translation and rotation. If None, it is set to 1e-4 when MuJoCo compatibility is enabled (matching MuJoCo's\n    default) and 2e-3 otherwise. Defaults to None.\nmax_dynamic_constraints : int, optional\n    Maximum number of dynamic constraints (like suction cup). Defaults to 8.\nuse_gjk_collision: bool, optional\n    Whether to use GJK for collision detection instead of MPR. More stable but much slower. Defaults to\n    `sim_options.requires_grad`.\nenable_contact_patch: bool, optional\n    Whether to recover the full contact patch from the touching faces inside GJK, in a single detection pass,\n    instead of through perturbed re-detections. The contact patch is cheaper and reports the exact contact\n    polygon, but it is discouraged: it is less reliable than the perturbation-based detection, which is extremely\n    robust at the cost of extra detection passes. Requires GJK collision detection, and raises otherwise. If\n    None, it is enabled when MuJoCo compatibility is enabled together with GJK and multi-contact, and disabled\n    otherwise. Defaults to None.\nbroadphase_traversal : gs.broadphase_traversal, optional\n    Broadphase traversal strategy. ``SAP`` (sweep-and-prune) or ``ALL_VS_ALL`` (parallel pair iteration). Defaults\n    to ``None`` (auto: ``SAP`` on CPU or with heterogeneous entities, ``ALL_VS_ALL`` on GPU otherwise). See\n    ``gs.broadphase_traversal`` for details on each strategy.\n\nWarning\n-------\nHibernation hasn't been robustly tested and will be fully supported soon.",
+      "properties": {
+        "dt": {
+          "anyOf": [
+            {
+              "exclusiveMinimum": 0,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Dt"
+        },
+        "gravity": {
+          "anyOf": [
+            {
+              "maxItems": 3,
+              "minItems": 3,
+              "prefixItems": [
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "number"
+                }
+              ],
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Gravity"
+        },
+        "enable_collision": {
+          "default": true,
+          "title": "Enable Collision",
+          "type": "boolean"
+        },
+        "enable_joint_limit": {
+          "default": true,
+          "title": "Enable Joint Limit",
+          "type": "boolean"
+        },
+        "enable_self_collision": {
+          "default": true,
+          "title": "Enable Self Collision",
+          "type": "boolean"
+        },
+        "enable_neutral_collision": {
+          "default": false,
+          "title": "Enable Neutral Collision",
+          "type": "boolean"
+        },
+        "enable_adjacent_collision": {
+          "default": false,
+          "title": "Enable Adjacent Collision",
+          "type": "boolean"
+        },
+        "disable_constraint": {
+          "default": false,
+          "title": "Disable Constraint",
+          "type": "boolean"
+        },
+        "max_collision_pairs": {
+          "default": 150,
+          "ge": 0,
+          "title": "Max Collision Pairs",
+          "type": "integer"
+        },
+        "max_contacts": {
+          "anyOf": [
+            {
+              "ge": 0,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Max Contacts"
+        },
+        "multiplier_collision_broad_phase": {
+          "default": 8,
+          "gt": 0,
+          "title": "Multiplier Collision Broad Phase",
+          "type": "integer"
+        },
+        "integrator": {
+          "$ref": "#/$defs/integrator",
+          "default": 2
+        },
+        "IK_max_targets": {
+          "default": 6,
+          "gt": 0,
+          "title": "Ik Max Targets",
+          "type": "integer"
+        },
+        "batch_links_info": {
+          "default": false,
+          "title": "Batch Links Info",
+          "type": "boolean"
+        },
+        "batch_joints_info": {
+          "default": false,
+          "title": "Batch Joints Info",
+          "type": "boolean"
+        },
+        "batch_dofs_info": {
+          "default": false,
+          "title": "Batch Dofs Info",
+          "type": "boolean"
+        },
+        "constraint_solver": {
+          "$ref": "#/$defs/constraint_solver",
+          "default": 1
+        },
+        "iterations": {
+          "default": 50,
+          "gt": 0,
+          "title": "Iterations",
+          "type": "integer"
+        },
+        "tolerance": {
+          "anyOf": [
+            {
+              "exclusiveMinimum": 0,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Tolerance"
+        },
+        "ls_iterations": {
+          "default": 50,
+          "gt": 0,
+          "title": "Ls Iterations",
+          "type": "integer"
+        },
+        "ls_tolerance": {
+          "default": 0.01,
+          "exclusiveMinimum": 0,
+          "title": "Ls Tolerance",
+          "type": "number"
+        },
+        "noslip_iterations": {
+          "default": 0,
+          "ge": 0,
+          "title": "Noslip Iterations",
+          "type": "integer"
+        },
+        "noslip_tolerance": {
+          "default": 1e-06,
+          "exclusiveMinimum": 0,
+          "title": "Noslip Tolerance",
+          "type": "number"
+        },
+        "friction_cone": {
+          "$ref": "#/$defs/friction_cone",
+          "default": 0
+        },
+        "contact_resolution": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/contact_resolution"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "enable_torsional_friction": {
+          "default": false,
+          "title": "Enable Torsional Friction",
+          "type": "boolean"
+        },
+        "enable_rolling_friction": {
+          "default": false,
+          "title": "Enable Rolling Friction",
+          "type": "boolean"
+        },
+        "impratio": {
+          "anyOf": [
+            {
+              "exclusiveMinimum": 0,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Impratio"
+        },
+        "contact_pruning_tolerance": {
+          "anyOf": [
+            {
+              "exclusiveMinimum": 0,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": 0.02,
+          "title": "Contact Pruning Tolerance"
+        },
+        "sparse_solve": {
+          "anyOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Sparse Solve"
+        },
+        "constraint_timeconst": {
+          "anyOf": [
+            {
+              "exclusiveMinimum": 0,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": 0.01,
+          "title": "Constraint Timeconst"
+        },
+        "box_box_detection": {
+          "default": false,
+          "title": "Box Box Detection",
+          "type": "boolean"
+        },
+        "use_hibernation": {
+          "default": false,
+          "title": "Use Hibernation",
+          "type": "boolean"
+        },
+        "hibernation_thresh_vel": {
+          "anyOf": [
+            {
+              "exclusiveMinimum": 0,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Hibernation Thresh Vel"
+        },
+        "max_dynamic_constraints": {
+          "default": 8,
+          "ge": 0,
+          "title": "Max Dynamic Constraints",
+          "type": "integer"
+        },
+        "enable_multi_contact": {
+          "default": true,
+          "title": "Enable Multi Contact",
+          "type": "boolean"
+        },
+        "enable_mujoco_compatibility": {
+          "default": false,
+          "title": "Enable Mujoco Compatibility",
+          "type": "boolean"
+        },
+        "use_gjk_collision": {
+          "anyOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Use Gjk Collision"
+        },
+        "enable_contact_patch": {
+          "anyOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Enable Contact Patch"
+        },
+        "broadphase_traversal": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/broadphase_traversal"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        }
+      },
+      "title": "RigidOptions",
       "type": "object"
     },
     "RukaEnvConfig": {
@@ -1293,22 +2140,224 @@
     "RukaSimConfig": {
       "additionalProperties": false,
       "properties": {
-        "class_name": {
-          "const": "src.sim.ruka_sim:RukaSim",
-          "title": "Class Name",
-          "type": "string"
+        "genesis": {
+          "$ref": "#/$defs/_GenesisConfig",
+          "default": {
+            "sim_options": {
+              "dt": 0.01,
+              "floor_height": 0.0,
+              "gravity": [
+                0.0,
+                0.0,
+                -9.81
+              ],
+              "requires_grad": false,
+              "substeps": 1,
+              "substeps_local": 1
+            },
+            "rigid_options": {
+              "IK_max_targets": 6,
+              "batch_dofs_info": false,
+              "batch_joints_info": false,
+              "batch_links_info": false,
+              "box_box_detection": false,
+              "broadphase_traversal": null,
+              "constraint_solver": 1,
+              "constraint_timeconst": 0.01,
+              "contact_pruning_tolerance": 0.02,
+              "contact_resolution": null,
+              "disable_constraint": false,
+              "dt": null,
+              "enable_adjacent_collision": false,
+              "enable_collision": true,
+              "enable_contact_patch": null,
+              "enable_joint_limit": true,
+              "enable_mujoco_compatibility": false,
+              "enable_multi_contact": true,
+              "enable_neutral_collision": false,
+              "enable_rolling_friction": false,
+              "enable_self_collision": true,
+              "enable_torsional_friction": false,
+              "friction_cone": 0,
+              "gravity": null,
+              "hibernation_thresh_vel": null,
+              "impratio": null,
+              "integrator": 2,
+              "iterations": 50,
+              "ls_iterations": 50,
+              "ls_tolerance": 0.01,
+              "max_collision_pairs": 150,
+              "max_contacts": null,
+              "max_dynamic_constraints": 8,
+              "multiplier_collision_broad_phase": 8,
+              "noslip_iterations": 0,
+              "noslip_tolerance": 1e-06,
+              "sparse_solve": null,
+              "tolerance": null,
+              "use_gjk_collision": null,
+              "use_hibernation": false
+            },
+            "vis_options": {
+              "ambient_light": [
+                0.1,
+                0.1,
+                0.1
+              ],
+              "background_color": [
+                0.04,
+                0.08,
+                0.12
+              ],
+              "contact_force_scale": 0.01,
+              "lights": [
+                {
+                  "color": [
+                    1.0,
+                    1.0,
+                    1.0
+                  ],
+                  "dir": [
+                    -1.0,
+                    -1.0,
+                    -1.0
+                  ],
+                  "intensity": 5.0,
+                  "type": "directional"
+                }
+              ],
+              "link_frame_size": 0.2,
+              "n_support_neighbors": 12,
+              "particle_size_scale": 1.0,
+              "plane_reflection": false,
+              "render_particle_as": "sphere",
+              "rendered_envs_idx": null,
+              "segmentation_level": "link",
+              "shadow": true,
+              "show_cameras": false,
+              "show_link_frame": false,
+              "show_world_frame": false,
+              "split_envs": false,
+              "visualize_mpm_boundary": false,
+              "visualize_pbd_boundary": false,
+              "visualize_sph_boundary": false,
+              "world_frame_size": 1.0
+            },
+            "viewer_options": {
+              "camera_fov": 40.0,
+              "camera_lookat": [
+                0.0,
+                0.0,
+                0.5
+              ],
+              "camera_pos": [
+                3.5,
+                0.5,
+                2.5
+              ],
+              "camera_up": [
+                0.0,
+                0.0,
+                1.0
+              ],
+              "enable_default_keybinds": true,
+              "enable_gui": false,
+              "enable_help_text": true,
+              "max_FPS": null,
+              "realtime_factor": 1.0,
+              "refresh_rate": 60,
+              "res": null,
+              "run_in_thread": null
+            },
+            "show_viewer": true,
+            "show_FPS": false
+          }
         },
         "num_envs": {
           "default": 1,
           "description": "The number of environments to simulate.",
           "title": "Num Envs",
           "type": "integer"
+        },
+        "class_name": {
+          "const": "src.sim.ruka_sim:RukaSim",
+          "title": "Class Name",
+          "type": "string"
+        },
+        "piano": {
+          "$ref": "#/$defs/PianoConfig",
+          "description": "The configuration for the piano simulation."
         }
       },
       "required": [
-        "class_name"
+        "class_name",
+        "piano"
       ],
       "title": "RukaSimConfig",
+      "type": "object"
+    },
+    "SimOptions": {
+      "additionalProperties": false,
+      "description": "Options configuring the top-level simulator.\n\nNote\n----\n1. `SimOptions` specifies the global settings for the simulator. Some parameters exist both in `SimOptions` and\n`SolverOptions`. In this case, if such parameters are given in `SolverOptions`, it will override the one specified\nin `SimOptions` for this specific solver. For example, if `dt` is only given in `SimOptions`, it will be shared by\nall the solvers, while a solver given its own `dt` integrates over that interval instead, and the number of\nsubsteps of every solver follows from it.\n\n2. In differentiable mode, `substeps_local` must be divisible by `substeps`, as external command is input per\n`step`, but `substep`. If `requires_grad` is False, we can use arbitrary `substeps_local`.\n\nParameters\n----------\ndt : float, optional\n    Time duration for each simulation step in seconds. Defaults to 1e-2.\nsubsteps : int, optional\n    Number of substeps per simulation step, i.e. how many times each solver integrates per `scene.step()`. More\n    substeps buy accuracy and stability, at a runtime cost that grows linearly with the count in the worst case\n    though sub-linearly in practice. Setting both this and a solver `dt` that implies a different count raises an\n    exception. Defaults to 1.\nsubsteps_local : int, optional\n    Number of substeps stored in GPU memory. Defaults to None. This is used for differentiable mode.\ngravity : tuple, optional\n    Gravity force in N/kg. Defaults to (0.0, 0.0, -9.81).\nfloor_height : float, optional\n    Height of the floor in meters. Defaults to 0.0.\nrequires_grad : bool, optional\n    Whether to enable differentiable mode. Defaults to False.\nuse_hydroelastic_contact : bool, optional\n    Whether to use hydroelastic contact. Defaults to False.",
+      "properties": {
+        "dt": {
+          "default": 0.01,
+          "exclusiveMinimum": 0,
+          "title": "Dt",
+          "type": "number"
+        },
+        "substeps": {
+          "default": 1,
+          "gt": 0,
+          "title": "Substeps",
+          "type": "integer"
+        },
+        "substeps_local": {
+          "anyOf": [
+            {
+              "gt": 0,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Substeps Local"
+        },
+        "gravity": {
+          "default": [
+            0.0,
+            0.0,
+            -9.81
+          ],
+          "maxItems": 3,
+          "minItems": 3,
+          "prefixItems": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "number"
+            },
+            {
+              "type": "number"
+            }
+          ],
+          "title": "Gravity",
+          "type": "array"
+        },
+        "floor_height": {
+          "default": 0.0,
+          "title": "Floor Height",
+          "type": "number"
+        },
+        "requires_grad": {
+          "default": false,
+          "title": "Requires Grad",
+          "type": "boolean"
+        }
+      },
+      "title": "SimOptions",
       "type": "object"
     },
     "StepWeightScheduleConfig": {
@@ -1380,10 +2429,567 @@
       ],
       "title": "SymmetryConfig",
       "type": "object"
+    },
+    "ViewerOptions": {
+      "additionalProperties": false,
+      "description": "Options configuring preperties of the interactive viewer.\n\nNote\n----\nThe viewer's camera uses the `Rasterizer` backend regardless of `gs.renderers.*` when creating the scene.\n\nParameters\n----------\nres : tuple, shape (2,), optional\n    The resolution of the viewer. If not set, will auto-compute using resolution of the connected display.\nrun_in_thread : bool\n    Whether to run the viewer in a background thread, where it stays responsive while the simulation is idle. If\n    None, it runs in a background thread wherever the platform supports it. MacOS only supports the main thread,\n    so asking for a background thread there raises an error. A scene file recording such a request is loaded\n    as asking for the platform default, so it opens on every platform.\nrefresh_rate : int\n    The rate (in frames per second) at which the viewer repaints on screen, and the framerate the video recorded\n    from the viewer window is encoded at. Independent of the physics timestep, and of the framerate passed to\n    `camera.start_recording`.\nrealtime_factor : float | None\n    Multiple of wall-clock real time that one second of playback stands for (1.0 is real time, 2.0 is twice as\n    fast). When the viewer is shown, the simulation is paced to it, falling behind gracefully when it cannot keep\n    up. It also sets the speed of the videos recorded by `camera.start_recording`, viewer or not. Set to None to\n    run as fast as possible, which recordings treat as real time since there is no pace to follow. Defaults\n    to 1.0.\ncamera_pos : tuple of float, shape (3,)\n    The position of the viewer's camera.\ncamera_lookat : tuple of float, shape (3,)\n    The lookat position that the camera.\ncamera_up : tuple of float, shape (3,)\n    The up vector of the camera's extrinsic pose.\ncamera_fov : float\n    The field of view (in degrees) of the camera.\nenable_help_text : bool\n    Whether to enable the rendering of instructions text in the viewer.\nenable_default_keybinds : bool\n    Whether to enable the default keyboard controls in the viewer.\nenable_gui : bool\n    Whether to automatically attach the ImGui overlay panel when the viewer is constructed. Defaults\n    to False. The overlay renders its own controls and captures keyboard input, so it requires\n    enable_help_text and enable_default_keybinds to be False; they default to False when enable_gui is\n    True, and explicitly setting either to True alongside enable_gui raises an error. Scene editing\n    controls (Rebuild Scene, Add Entity, per-entity remove) are visible but disabled unless the scene\n    is managed by a gs.InteractiveScene that supports them.",
+      "properties": {
+        "res": {
+          "anyOf": [
+            {
+              "maxItems": 2,
+              "minItems": 2,
+              "prefixItems": [
+                {
+                  "gt": 0,
+                  "type": "integer"
+                },
+                {
+                  "gt": 0,
+                  "type": "integer"
+                }
+              ],
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Res"
+        },
+        "run_in_thread": {
+          "anyOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Run In Thread"
+        },
+        "refresh_rate": {
+          "default": 60,
+          "gt": 0,
+          "title": "Refresh Rate",
+          "type": "integer"
+        },
+        "realtime_factor": {
+          "anyOf": [
+            {
+              "exclusiveMinimum": 0,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": 1.0,
+          "title": "Realtime Factor"
+        },
+        "camera_pos": {
+          "default": [
+            3.5,
+            0.5,
+            2.5
+          ],
+          "maxItems": 3,
+          "minItems": 3,
+          "prefixItems": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "number"
+            },
+            {
+              "type": "number"
+            }
+          ],
+          "title": "Camera Pos",
+          "type": "array"
+        },
+        "camera_lookat": {
+          "default": [
+            0.0,
+            0.0,
+            0.5
+          ],
+          "maxItems": 3,
+          "minItems": 3,
+          "prefixItems": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "number"
+            },
+            {
+              "type": "number"
+            }
+          ],
+          "title": "Camera Lookat",
+          "type": "array"
+        },
+        "camera_up": {
+          "default": [
+            0.0,
+            0.0,
+            1.0
+          ],
+          "maxItems": 3,
+          "minItems": 3,
+          "prefixItems": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "number"
+            },
+            {
+              "type": "number"
+            }
+          ],
+          "title": "Camera Up",
+          "type": "array"
+        },
+        "camera_fov": {
+          "default": 40,
+          "title": "Camera Fov",
+          "type": "number"
+        },
+        "enable_help_text": {
+          "default": true,
+          "title": "Enable Help Text",
+          "type": "boolean"
+        },
+        "enable_default_keybinds": {
+          "default": true,
+          "title": "Enable Default Keybinds",
+          "type": "boolean"
+        },
+        "enable_gui": {
+          "default": false,
+          "title": "Enable Gui",
+          "type": "boolean"
+        },
+        "max_FPS": {
+          "anyOf": [
+            {
+              "gt": 0,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Max Fps"
+        }
+      },
+      "title": "ViewerOptions",
+      "type": "object"
+    },
+    "VisOptions": {
+      "additionalProperties": false,
+      "description": "This configures visualization-related properties that are independent of the viewer or camera.\n\nParameters\n----------\nshow_world_frame : bool\n    Whether to visualize the world frame. Default to False.\nworld_frame_size : float\n    The length (in meters) of the world frame's axes.\nshow_link_frame : bool\n    Whether to visualize the frames of each RigidLink. Default to False.\nlink_frame_size : float\n    The length (in meters) of the link frames' axes.\nshow_cameras : bool\n    Whether to render the cameras added to the scene, together with their frustums. Default to False.\nshadow : bool\n    Whether to render shadow. Defaults to True.\nplane_reflection : bool\n    Whether to render plane reflection. Defaults to False.\nsplit_envs : bool\n    Whether the cameras render each environment in its own world, split from the others, or all the environments\n    as if they shared one scene, laid out side by side as the interactive viewer shows them. Split, a camera returns\n    one image per rendered environment, stacked along a leading dimension, each drawn from the same viewpoint with\n    lighting and shadows identical in every environment, at the cost of one render per environment. Merged, a\n    camera returns one image of the whole grid from a viewpoint bound to one environment, which is cheaper and\n    shows the environments next to each other. This is only an option for Rasterizer, and applies to the scene\n    cameras, debug cameras included. Camera sensors and BatchRender always render the environments split. Defaults\n    to False.\nbackground_color : tuple of float, shape (3,)\n    The color of the scene background.\nambient_light : tuple of float, shape (3,)\n    The color of the scene's ambient light.\nvisualize_mpm_boundary : bool\n    Whether to visualize the boundary of the MPM Solver.\nvisualize_sph_boundary : bool\n    Whether to visualize the boundary of the SPH Solver.\nvisualize_pbd_boundary : bool\n    Whether to visualize the boundary of the PBD Solver.\nsegmentation_level : str\n    The segmentation level used for segmentation mask rendering. Should be one of ['entity', 'link', 'geom'].\n    Defaults to 'link'.\nrender_particle_as : str\n    How particles in the scene should be rendered. Should be one of ['sphere', 'tet']. Defaults to 'sphere'.\nparticle_size_scale : float\n    Scale applied to actual particle size for rendering. Defaults to 1.0.\ncontact_force_scale : float = 0.02\n    Scale in m.N^{-1} for contact arrow visualization, e.g. the force arrow representing 10N will be 0.2m long if\n    scale is 0.02. Defaults to 0.01.\nn_support_neighbors : int\n    Number of supporting neighbor particles used to compute vertex position of the visual mesh. Used for rendering\n    deformable bodies. Defaults to 12.\nrendered_envs_idx : list, optional\n    Indices of the environments that will be rendered. If not provided, all the environments will be considered.\n    Defaults to None.\nn_rendered_envs : int, optional\n    This option is deprecated. Please use `rendered_envs_idx` instead.\nlights : list of dict.\n    Lights added to the scene.",
+      "properties": {
+        "show_world_frame": {
+          "default": false,
+          "title": "Show World Frame",
+          "type": "boolean"
+        },
+        "world_frame_size": {
+          "default": 1.0,
+          "title": "World Frame Size",
+          "type": "number"
+        },
+        "show_link_frame": {
+          "default": false,
+          "title": "Show Link Frame",
+          "type": "boolean"
+        },
+        "link_frame_size": {
+          "default": 0.2,
+          "title": "Link Frame Size",
+          "type": "number"
+        },
+        "show_cameras": {
+          "default": false,
+          "title": "Show Cameras",
+          "type": "boolean"
+        },
+        "shadow": {
+          "default": true,
+          "title": "Shadow",
+          "type": "boolean"
+        },
+        "plane_reflection": {
+          "default": false,
+          "title": "Plane Reflection",
+          "type": "boolean"
+        },
+        "split_envs": {
+          "default": false,
+          "title": "Split Envs",
+          "type": "boolean"
+        },
+        "background_color": {
+          "default": [
+            0.04,
+            0.08,
+            0.12
+          ],
+          "maxItems": 3,
+          "minItems": 3,
+          "prefixItems": [
+            {
+              "maximum": 1.0,
+              "minimum": 0.0,
+              "type": "number"
+            },
+            {
+              "maximum": 1.0,
+              "minimum": 0.0,
+              "type": "number"
+            },
+            {
+              "maximum": 1.0,
+              "minimum": 0.0,
+              "type": "number"
+            }
+          ],
+          "title": "Background Color",
+          "type": "array"
+        },
+        "ambient_light": {
+          "default": [
+            0.1,
+            0.1,
+            0.1
+          ],
+          "maxItems": 3,
+          "minItems": 3,
+          "prefixItems": [
+            {
+              "maximum": 1.0,
+              "minimum": 0.0,
+              "type": "number"
+            },
+            {
+              "maximum": 1.0,
+              "minimum": 0.0,
+              "type": "number"
+            },
+            {
+              "maximum": 1.0,
+              "minimum": 0.0,
+              "type": "number"
+            }
+          ],
+          "title": "Ambient Light",
+          "type": "array"
+        },
+        "visualize_mpm_boundary": {
+          "default": false,
+          "title": "Visualize Mpm Boundary",
+          "type": "boolean"
+        },
+        "visualize_sph_boundary": {
+          "default": false,
+          "title": "Visualize Sph Boundary",
+          "type": "boolean"
+        },
+        "visualize_pbd_boundary": {
+          "default": false,
+          "title": "Visualize Pbd Boundary",
+          "type": "boolean"
+        },
+        "segmentation_level": {
+          "default": "link",
+          "enum": [
+            "entity",
+            "link",
+            "geom"
+          ],
+          "title": "Segmentation Level",
+          "type": "string"
+        },
+        "render_particle_as": {
+          "default": "sphere",
+          "enum": [
+            "sphere",
+            "tet"
+          ],
+          "title": "Render Particle As",
+          "type": "string"
+        },
+        "particle_size_scale": {
+          "default": 1.0,
+          "exclusiveMinimum": 0,
+          "title": "Particle Size Scale",
+          "type": "number"
+        },
+        "contact_force_scale": {
+          "default": 0.01,
+          "exclusiveMinimum": 0,
+          "title": "Contact Force Scale",
+          "type": "number"
+        },
+        "n_support_neighbors": {
+          "default": 12,
+          "title": "N Support Neighbors",
+          "type": "integer"
+        },
+        "rendered_envs_idx": {
+          "anyOf": [
+            {
+              "items": {
+                "type": "integer"
+              },
+              "minItems": 1,
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Rendered Envs Idx"
+        },
+        "lights": {
+          "items": {
+            "discriminator": {
+              "mapping": {
+                "ambient": "#/$defs/AmbientLight",
+                "directional": "#/$defs/DirectionalLight",
+                "point": "#/$defs/PointLight"
+              },
+              "propertyName": "type"
+            },
+            "oneOf": [
+              {
+                "$ref": "#/$defs/DirectionalLight"
+              },
+              {
+                "$ref": "#/$defs/PointLight"
+              },
+              {
+                "$ref": "#/$defs/AmbientLight"
+              }
+            ]
+          },
+          "title": "Lights",
+          "type": "array"
+        }
+      },
+      "title": "VisOptions",
+      "type": "object"
+    },
+    "_GenesisConfig": {
+      "additionalProperties": false,
+      "description": "Configuration for a Genesis system.",
+      "properties": {
+        "sim_options": {
+          "$ref": "#/$defs/SimOptions",
+          "default": {
+            "dt": 0.01,
+            "substeps": 1,
+            "substeps_local": 1,
+            "gravity": [
+              0.0,
+              0.0,
+              -9.81
+            ],
+            "floor_height": 0.0,
+            "requires_grad": false
+          }
+        },
+        "rigid_options": {
+          "$ref": "#/$defs/RigidOptions",
+          "default": {
+            "dt": null,
+            "gravity": null,
+            "enable_collision": true,
+            "enable_joint_limit": true,
+            "enable_self_collision": true,
+            "enable_neutral_collision": false,
+            "enable_adjacent_collision": false,
+            "disable_constraint": false,
+            "max_collision_pairs": 150,
+            "max_contacts": null,
+            "multiplier_collision_broad_phase": 8,
+            "integrator": 2,
+            "IK_max_targets": 6,
+            "batch_links_info": false,
+            "batch_joints_info": false,
+            "batch_dofs_info": false,
+            "constraint_solver": 1,
+            "iterations": 50,
+            "tolerance": null,
+            "ls_iterations": 50,
+            "ls_tolerance": 0.01,
+            "noslip_iterations": 0,
+            "noslip_tolerance": 1e-06,
+            "friction_cone": 0,
+            "contact_resolution": null,
+            "enable_torsional_friction": false,
+            "enable_rolling_friction": false,
+            "impratio": null,
+            "contact_pruning_tolerance": 0.02,
+            "sparse_solve": null,
+            "constraint_timeconst": 0.01,
+            "box_box_detection": false,
+            "use_hibernation": false,
+            "hibernation_thresh_vel": null,
+            "max_dynamic_constraints": 8,
+            "enable_multi_contact": true,
+            "enable_mujoco_compatibility": false,
+            "use_gjk_collision": null,
+            "enable_contact_patch": null,
+            "broadphase_traversal": null
+          }
+        },
+        "vis_options": {
+          "$ref": "#/$defs/VisOptions",
+          "default": {
+            "show_world_frame": false,
+            "world_frame_size": 1.0,
+            "show_link_frame": false,
+            "link_frame_size": 0.2,
+            "show_cameras": false,
+            "shadow": true,
+            "plane_reflection": false,
+            "split_envs": false,
+            "background_color": [
+              0.04,
+              0.08,
+              0.12
+            ],
+            "ambient_light": [
+              0.1,
+              0.1,
+              0.1
+            ],
+            "visualize_mpm_boundary": false,
+            "visualize_sph_boundary": false,
+            "visualize_pbd_boundary": false,
+            "segmentation_level": "link",
+            "render_particle_as": "sphere",
+            "particle_size_scale": 1.0,
+            "contact_force_scale": 0.01,
+            "n_support_neighbors": 12,
+            "rendered_envs_idx": null,
+            "lights": [
+              {
+                "color": [
+                  1.0,
+                  1.0,
+                  1.0
+                ],
+                "dir": [
+                  -1.0,
+                  -1.0,
+                  -1.0
+                ],
+                "intensity": 5.0,
+                "type": "directional"
+              }
+            ]
+          }
+        },
+        "viewer_options": {
+          "$ref": "#/$defs/ViewerOptions",
+          "default": {
+            "res": null,
+            "run_in_thread": null,
+            "refresh_rate": 60,
+            "realtime_factor": 1.0,
+            "camera_pos": [
+              3.5,
+              0.5,
+              2.5
+            ],
+            "camera_lookat": [
+              0.0,
+              0.0,
+              0.5
+            ],
+            "camera_up": [
+              0.0,
+              0.0,
+              1.0
+            ],
+            "camera_fov": 40.0,
+            "enable_help_text": true,
+            "enable_default_keybinds": true,
+            "enable_gui": false,
+            "max_FPS": null
+          }
+        },
+        "show_viewer": {
+          "default": true,
+          "title": "Show Viewer",
+          "type": "boolean"
+        },
+        "show_FPS": {
+          "default": false,
+          "title": "Show Fps",
+          "type": "boolean"
+        }
+      },
+      "title": "_GenesisConfig",
+      "type": "object"
+    },
+    "broadphase_traversal": {
+      "description": "Strategy for broad-phase collision detection in the rigid solver.\n\nBroad-phase quickly eliminates geometry pairs that cannot collide before the more expensive narrow-phase runs.\n\nAt init time, geometry pairs that can never collide are filtered out (same-link, fixed-vs-fixed, contype/conaffinity\nmismatch, etc.), producing a list of *valid pairs*.  The number of valid pairs can be up to O(n_geoms^2) but is\ntypically much smaller after filtering.  The two strategies differ in how they search these valid pairs each step:\n\nAttributes\n----------\nSAP : int\n    Sweep-and-prune.  Sorts geometry AABBs along one axis (O(n_geoms log n_geoms)) then only checks pairs that\n    overlap on that axis.  The sort and sweep are single-threaded, which utilizes GPU cores poorly. However the\n    cost per step is only O(n_geoms log n_geoms + k) where k is the number of axis-overlapping pairs \u2014 typically\n    much less than the full set of valid pairs.\nALL_VS_ALL : int\n    Checks every valid pair every step (AABB overlap test), dispatching them in parallel across GPU threads.  Cost\n    per step is O(n_valid_pairs) which is efficient on GPU when the pair count is moderate, but becomes expensive\n    in scenes with many geometries since the valid pair count grows quadratically. Does not support heterogeneous\n    entities at this time.\n\nNotes\n-----\n``RigidOptions.broadphase_traversal`` defaults to ``None``, which lets the solver choose automatically:\n\n- **CPU backend** \u2192 ``SAP`` (sequential sweep is efficient on CPU).\n- **GPU backend** \u2192 ``ALL_VS_ALL`` (parallel pair checking is faster).\n- **GPU with heterogeneous entities** \u2192 ``SAP`` (``ALL_VS_ALL`` is not compatible with them).",
+      "enum": [
+        0,
+        1
+      ],
+      "title": "broadphase_traversal",
+      "type": "integer"
+    },
+    "constraint_solver": {
+      "enum": [
+        0,
+        1
+      ],
+      "title": "constraint_solver",
+      "type": "integer"
+    },
+    "contact_resolution": {
+      "description": "How a contact's normal force and friction force are resolved against each other.\n\n'convex' poses the whole contact as a single smooth convex cost and lets the solver trade the normal residual\nagainst the tangential one. Because the friction limit mu * f_n bounds the pair jointly, a contact sliding fast\nenough that its friction rows demand more force than the cone allows can be answered by raising f_n instead: a body\nlaunched horizontally then lifts off a flat floor, by more the faster it slides. In exchange the whole problem stays\none convex program, which converges predictably on stiff articulated chains and high mass ratios.\n\n'signorini' bounds friction against the normal force the contact has actually developed, so that force is set by the\ncontact's own normal state rather than by tangential demand, and sliding can never inflate it - a sliding body\ndecelerates at mu * g and stays down at any speed. Contacts are resolved by successive approximation, costing extra\nsolver iterations and giving up the single-convex-program guarantee. Prefer it whenever sliding contact matters;\nchoose 'convex' for parity with engines built on that formulation, or if a stiff scene converges better under it.\n\n'signorini' requires the elliptic friction cone, whose rows separate into a normal row and a friction disc - the\npyramidal cone mixes the normal direction into every row and admits no such split - and the Newton constraint\nsolver, the only one that reaches the fixed point of the resulting successive approximation. It implements the\nCoulomb complementarity problem eq. (C.22) of Alexis Duburcq, \"Learning and Optimization of the Locomotion with an\nExoskeleton for Paraplegic People\", PhD thesis, Universite Paris Sciences et Lettres, 2022 (HAL tel-04166955),\nAppendix C, whose Signorini condition is what forbids the normal force from absorbing tangential demand.",
+      "enum": [
+        0,
+        1
+      ],
+      "title": "contact_resolution",
+      "type": "integer"
+    },
+    "friction_cone": {
+      "description": "Contact friction cone model, trading numerical robustness for physical accuracy.\n\n'pyramidal' (the default) approximates the friction cone by a pyramid: robust and easy to solve, but the\napproximation makes friction anisotropic (the effective limit depends on the sliding direction). 'elliptic' is\nthe exact cone: friction is isotropic and bounded by its true Euclidean limit sqrt(f_t1^2 + f_t2^2) <= mu * f_n\nin every direction, and with a high 'impratio' it holds resting stacks without the slow tangential creep of\nregularized friction, in return for being harder to solve and more sensitive numerically. Prefer pyramidal for\nrobustness; choose elliptic when isotropic friction or firm static friction matters - e.g. objects that must stay\nput at rest instead of slowly creeping.",
+      "enum": [
+        0,
+        1
+      ],
+      "title": "friction_cone",
+      "type": "integer"
+    },
+    "integrator": {
+      "enum": [
+        0,
+        1,
+        2
+      ],
+      "title": "integrator",
+      "type": "integer"
     }
   },
   "additionalProperties": false,
-  "description": "Root configuration for a training run.",
+  "description": "Root configuration for a training run.\n\nPasses the expected runner configuration to the rsl-rl runner, as well as for our user-defined configurations for environments and systems/simulations.",
   "properties": {
     "runner": {
       "description": "Configuration for a RSL-RL runner.",
@@ -1408,6 +3014,8 @@
       "description": "Configuration for the run's environment.",
       "discriminator": {
         "mapping": {
+          "src.env.hand_piano:HandPianoEnv": "#/$defs/HandPianoEnvConfig",
+          "src.env.null:NullEnv": "#/$defs/NullEnvConfig",
           "src.env.ruka_env:RukaEnv": "#/$defs/RukaEnvConfig"
         },
         "propertyName": "class_name"
@@ -1415,6 +3023,12 @@
       "oneOf": [
         {
           "$ref": "#/$defs/RukaEnvConfig"
+        },
+        {
+          "$ref": "#/$defs/NullEnvConfig"
+        },
+        {
+          "$ref": "#/$defs/HandPianoEnvConfig"
         }
       ],
       "title": "Env"
@@ -1423,6 +3037,8 @@
       "description": "Configuration for the run's system.",
       "discriminator": {
         "mapping": {
+          "src.sim.hand_piano:HandPiano": "#/$defs/HandPianoConfig",
+          "src.sim.piano:Piano": "#/$defs/PianoConfig",
           "src.sim.ruka_sim:RukaSim": "#/$defs/RukaSimConfig"
         },
         "propertyName": "class_name"
@@ -1430,6 +3046,12 @@
       "oneOf": [
         {
           "$ref": "#/$defs/RukaSimConfig"
+        },
+        {
+          "$ref": "#/$defs/PianoConfig"
+        },
+        {
+          "$ref": "#/$defs/HandPianoConfig"
         }
       ],
       "title": "System"

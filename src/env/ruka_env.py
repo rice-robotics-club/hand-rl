@@ -1,4 +1,4 @@
-from typing import Literal
+from typing import Literal, override
 
 import torch
 from rsl_rl.env import VecEnv
@@ -24,18 +24,20 @@ class RukaEnvConfig(Config):
 
 class RukaEnv(VecEnv):
     def __init__(self, sim: VecSystem[RukaState, RukaAction], cfg: RukaEnvConfig):
-        self._sim = sim
-        self.num_envs = sim.num_envs
-        self.num_actions = 27
-        self.device = "cuda" if torch.cuda.is_available() else "cpu"
-        self.cfg = cfg
-        self._reward = RewardFunction[RukaState, RukaAction](
-            [velocity_norm], batch_size=sim.num_envs
-        )
+        self._sim: VecSystem[RukaState, RukaAction] = sim
+        self.num_envs: int = sim.num_envs
+        self.num_actions: int = 27
+        self.device: torch.device | str = "cuda" if torch.cuda.is_available() else "cpu"
+        self.cfg: object = cfg
+        self._reward: RewardFunction[RukaState, RukaAction] = RewardFunction[
+            RukaState, RukaAction
+        ]([velocity_norm], batch_size=sim.num_envs)
 
+    @override
     def get_observations(self):
         return self._sim.state
 
+    @override
     def step(self, actions: Tensor):
         actions = RukaAction.from_tensor(actions)
         self._sim.step(actions)

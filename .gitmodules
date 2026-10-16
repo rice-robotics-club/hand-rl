@@ -1,3 +1,6 @@
 [submodule "robots/ruka_description"]
 	path = robots/ruka_description
 	url = https://github.com/rice-robotics-club/ruka_description.git
+[submodule "robots/robopianist"]
+	path = robots/robopianist
+	url = https://github.com/google-research/robopianist.git

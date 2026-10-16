@@ -3,16 +3,19 @@
 Exists as an example implementation of the VecSystem interface.
 """
 
-from typing import Literal
+from typing import TYPE_CHECKING, Literal, override
 
 import genesis as gs
 import torch
 from jaxtyping import Float
 from tensordict import TypedTensorDict
 
-from src.base_config import Config
+from src.sim.piano import PianoConfig
 
-from .vec_system import VecAction, VecSystem
+from .vec_system import GenesisConfig, GenesisSystem, VecAction
+
+if TYPE_CHECKING:
+    from genesis.engine.entities import RigidEntity
 
 
 class RukaState(TypedTensorDict):
@@ -29,31 +32,34 @@ class RukaAction(VecAction):
     joint_angles: Float[torch.Tensor, "*batch 27"]
 
     @classmethod
+    @override
     def from_tensor(cls, tensor: Float[torch.Tensor, "*batch 27"]) -> "RukaAction":
         """Converts a tensor to a RukaAction instance."""
         return cls(joint_angles=tensor)
 
 
-class RukaSimConfig(Config):
+class RukaSimConfig(GenesisConfig):
     class_name: Literal["src.sim.ruka_sim:RukaSim"]
 
     num_envs: int = 1
     """The number of environments to simulate."""
 
+    piano: PianoConfig
+    """The configuration for the piano simulation."""
 
-class RukaSim(VecSystem[RukaState, RukaAction]):
+
+class RukaSim(GenesisSystem[RukaState, RukaAction, RukaSimConfig]):
     """Defines an example Genesis simulation to demonstrate the use of VecSystem."""
 
-    def __init__(self, cfg: RukaSimConfig):
+    def __init__(self, config: RukaSimConfig):
         """Initializes the RukaSim with the specified number of environments."""
-        self._num_envs = cfg.num_envs
-        self._dt = 1.0 / 60.0
+        super().__init__(config)
+        self._num_envs: int = config.num_envs
 
         gs.init()
 
-        self._scene = gs.Scene(
+        self._scene: gs.Scene = gs.Scene(
             sim_options=gs.options.SimOptions(
-                dt=self._dt,
                 substeps=2,
             ),
             rigid_options=gs.options.RigidOptions(
@@ -74,14 +80,14 @@ class RukaSim(VecSystem[RukaState, RukaAction]):
             show_viewer=True,
         )
 
-        self._scene.add_entity(
+        self._plane: RigidEntity = self._scene.add_entity(
             gs.morphs.URDF(
                 file="urdf/plane/plane.urdf",
                 fixed=True,
             )
         )
 
-        self._robot = self._scene.add_entity(
+        self._robot: RigidEntity = self._scene.add_entity(
             gs.morphs.URDF(
                 file="robots/ruka_description/urdf/robot.urdf",
                 pos=[0, 0, 0],
@@ -91,7 +97,7 @@ class RukaSim(VecSystem[RukaState, RukaAction]):
 
         self._scene.build(self._num_envs)
 
-        self._state = RukaState(
+        self._state: RukaState = RukaState(
             position=torch.zeros((self._num_envs, 3)),
             orientation=torch.zeros((self._num_envs, 4)),
             velocity=torch.zeros((self._num_envs, 3)),
@@ -99,23 +105,38 @@ class RukaSim(VecSystem[RukaState, RukaAction]):
         )
 
     @property
+    @override
+    def scene(self) -> gs.Scene:
+        return self._scene
+
+    @property
+    @override
     def num_envs(self) -> int:
         """The number of environments in the system."""
         return self._num_envs
 
     @property
+    @override
+    def num_actions(self) -> int:
+        """One joint angle per robot DOF."""
+        return self._robot.n_dofs
+
+    @property
+    @override
     def state(self) -> RukaState:
         """The current state of the system."""
         return self._state
 
+    @override
     def step(self, action: RukaAction):
         """Steps the simulation forward by one timestep."""
         self._robot.set_dofs_position(action.joint_angles)
         self._scene.step()
-        self._state.position.copy_(self._robot.get_pos())  # type: ignore
-        self._state.orientation.copy_(self._robot.get_quat())
-        self._state.velocity.copy_(self._robot.get_vel())
+        _ = self._state.position.copy_(torch.as_tensor(self._robot.get_pos()))
+        _ = self._state.orientation.copy_(torch.as_tensor(self._robot.get_quat()))
+        _ = self._state.velocity.copy_(torch.as_tensor(self._robot.get_vel()))
 
-    def reset(self, idx: int | torch.Tensor | None = None):
+    @override
+    def reset(self, idx: int | torch.Tensor | None = None) -> None:
         """Resets the simulation to the initial state."""
-        self._scene.reset(envs_idx=idx)
+        self._scene.reset(envs_idx=idx)  # type: ignore

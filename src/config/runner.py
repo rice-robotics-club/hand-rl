@@ -322,7 +322,7 @@ class _MLPModelFields(Config):
     Source: https://leggedrobotics.github.io/rsl_rl/guide/configuration.html#mlpmodel
     """
 
-    distribution_cfg: DistributionConfig
+    distribution_cfg: DistributionConfig | None = None
     """Optional output distribution configuration. If provided, the model can output stochastic values sampled from the specified distribution."""
 
     hidden_dims: tuple[int, ...] | list[int] = Field(

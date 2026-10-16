@@ -1,0 +1,31 @@
+# yaml-language-server: $schema=schemas/schema.json
+runner:
+  class_name: OnPolicyRunner
+  save_interval: 100
+  obs_groups:
+    actor: ["position", "velocity", "orientation", "joint_positions", "pressed", "target"]
+    critic: ["position", "velocity", "orientation", "joint_positions", "pressed", "target"]
+  num_steps_per_env: 24
+  algorithm:
+    class_name: PPO
+  actor:
+    class_name: MLPModel
+    obs_normalization: true
+    distribution_cfg:
+      class_name: GaussianDistribution
+  critic:
+    class_name: MLPModel
+    obs_normalization: true
+env:
+  class_name: src.env.hand_piano:HandPianoEnv
+  max_episode_length: 250
+  reward_weights:
+    target_distance: 1.0
+    velocity_norm: 0.1
+system:
+  class_name: src.sim.hand_piano:HandPiano
+  num_envs: 100
+  genesis:
+    show_viewer: false
+  piano:
+    class_name: src.sim.piano:Piano

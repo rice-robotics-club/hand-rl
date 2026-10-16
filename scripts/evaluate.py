@@ -16,10 +16,33 @@ warnings.filterwarnings(
 
 class Args(argparse.Namespace):
     config: str = "config/piano.yaml"
+    log_dir: str | None = None
     checkpoint: str | None = None
     num_envs: int = 1
     episodes: int = 5
     headless: bool = False
+
+
+RUN_TIMESTAMP = re.compile(r"\d{8}-\d{6}$")
+"""Matches the `-%Y%m%d-%H%M%S` suffix that train.py appends to run directories."""
+
+
+def latest_run(log_dir: Path) -> Path:
+    """Resolves `log_dir` to a run directory containing checkpoints.
+
+    `log_dir` may be a run directory itself, a prefix such as `logs/piano` (matching
+    `logs/piano-<timestamp>`), or a directory of runs such as `logs`. In the latter two
+    cases, the run with the most recent timestamp is returned.
+    """
+    if any(log_dir.glob("model_*.pt")):
+        return log_dir
+    candidates = list(log_dir.parent.glob(f"{log_dir.name}-*"))
+    if log_dir.is_dir():
+        candidates += list(log_dir.iterdir())
+    runs = [p for p in candidates if p.is_dir() and RUN_TIMESTAMP.search(p.name)]
+    if not runs:
+        raise FileNotFoundError(f"No training runs found for {log_dir}")
+    return max(runs, key=lambda p: RUN_TIMESTAMP.findall(p.name)[-1])
 
 
 def latest_checkpoint(log_dir: Path) -> Path:
@@ -37,7 +60,15 @@ def main():
         "--checkpoint",
         type=str,
         default=None,
-        help="Path to a model checkpoint. Defaults to the latest one in ./logs/.",
+        help="Path to a model checkpoint. Overrides --log-dir.",
+    )
+    _ = parser.add_argument(
+        "--log-dir",
+        type=str,
+        default=None,
+        help="A run directory, a run prefix (e.g. logs/piano), or a directory of runs. "
+        + "Uses the latest checkpoint of the latest matching run. "
+        + "Defaults to logs/<run_name>.",
     )
     _ = parser.add_argument("--num-envs", type=int, default=1)
     _ = parser.add_argument("--episodes", type=int, default=5)
@@ -47,6 +78,14 @@ def main():
     logging.getLogger("genesis").propagate = False
 
     cfg = get_config(args.config)
+
+    if args.checkpoint:
+        checkpoint = Path(args.checkpoint)
+    else:
+        log_dir = Path(args.log_dir or f"logs/{cfg.runner.run_name}")
+        checkpoint = latest_checkpoint(latest_run(log_dir))
+    print(f"Loading checkpoint: {checkpoint}")
+
     cfg.system.num_envs = args.num_envs
     cfg.system.genesis.show_viewer = not args.headless
 
@@ -63,8 +102,6 @@ def main():
         device="cuda",
     )
 
-    checkpoint = Path(args.checkpoint or latest_checkpoint(Path("./logs/")))
-    print(f"Loading checkpoint: {checkpoint}")
     _ = runner.load(str(checkpoint), load_cfg={"actor": True})
     policy = runner.get_inference_policy(device="cuda")
 

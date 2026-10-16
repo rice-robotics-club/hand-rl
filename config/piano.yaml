@@ -1,10 +1,27 @@
 # yaml-language-server: $schema=schemas/schema.json
 runner:
   class_name: OnPolicyRunner
+  run_name: piano
   save_interval: 100
   obs_groups:
-    actor: ["position", "velocity", "orientation", "joint_positions", "pressed", "target"]
-    critic: ["position", "velocity", "orientation", "joint_positions", "pressed", "target"]
+    actor:
+      [
+        "position",
+        "velocity",
+        "orientation",
+        "joint_positions",
+        "pressed",
+        "target",
+      ]
+    critic:
+      [
+        "position",
+        "velocity",
+        "orientation",
+        "joint_positions",
+        "pressed",
+        "target",
+      ]
   num_steps_per_env: 24
   algorithm:
     class_name: PPO

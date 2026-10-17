@@ -1,1 +1,0 @@
-1st half of our RL training pipeline, where we train neural networks in a pure-simulation environment

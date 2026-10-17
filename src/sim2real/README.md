@@ -1,1 +1,0 @@
-second half of our RL training pipeline, where we toughen up pure sim trained neural networks to handle real-world perturbations

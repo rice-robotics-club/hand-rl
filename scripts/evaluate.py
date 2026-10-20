@@ -1,16 +1,16 @@
 import argparse
-import logging
-import re
-import warnings
 from pathlib import Path
 
 import torch
-from rsl_rl.utils import resolve_class
 
-from src.config import get_config
-
-warnings.filterwarnings(
-    "ignore", message=r".*torch\.jit\.script.*", category=FutureWarning
+from src.util.run import (
+    build_env,
+    build_runner,
+    build_system,
+    get_config,
+    latest_checkpoint,
+    latest_run,
+    setup_logging,
 )
 
 
@@ -21,36 +21,6 @@ class Args(argparse.Namespace):
     num_envs: int = 1
     episodes: int = 5
     headless: bool = False
-
-
-RUN_TIMESTAMP = re.compile(r"\d{8}-\d{6}$")
-"""Matches the `-%Y%m%d-%H%M%S` suffix that train.py appends to run directories."""
-
-
-def latest_run(log_dir: Path) -> Path:
-    """Resolves `log_dir` to a run directory containing checkpoints.
-
-    `log_dir` may be a run directory itself, a prefix such as `logs/piano` (matching
-    `logs/piano-<timestamp>`), or a directory of runs such as `logs`. In the latter two
-    cases, the run with the most recent timestamp is returned.
-    """
-    if any(log_dir.glob("model_*.pt")):
-        return log_dir
-    candidates = list(log_dir.parent.glob(f"{log_dir.name}-*"))
-    if log_dir.is_dir():
-        candidates += list(log_dir.iterdir())
-    runs = [p for p in candidates if p.is_dir() and RUN_TIMESTAMP.search(p.name)]
-    if not runs:
-        raise FileNotFoundError(f"No training runs found for {log_dir}")
-    return max(runs, key=lambda p: RUN_TIMESTAMP.findall(p.name)[-1])
-
-
-def latest_checkpoint(log_dir: Path) -> Path:
-    """Returns the checkpoint with the highest iteration number in `log_dir`."""
-    checkpoints = list(log_dir.glob("model_*.pt"))
-    if not checkpoints:
-        raise FileNotFoundError(f"No checkpoints found in {log_dir}")
-    return max(checkpoints, key=lambda p: int(re.findall(r"\d+", p.stem)[-1]))
 
 
 def main():
@@ -75,7 +45,7 @@ def main():
     _ = parser.add_argument("--headless", action="store_true")
     args: Args = parser.parse_args(namespace=Args())
 
-    logging.getLogger("genesis").propagate = False
+    setup_logging()
 
     cfg = get_config(args.config)
 
@@ -89,18 +59,9 @@ def main():
     cfg.system.num_envs = args.num_envs
     cfg.system.genesis.show_viewer = not args.headless
 
-    system_class, _ = resolve_class(cfg.system.model_dump())
-    env_class, _ = resolve_class(cfg.env.model_dump())
-    runner_class, _ = resolve_class(cfg.runner.model_dump())
-
-    sim = system_class(cfg.system)
-    env = env_class(sim, cfg.env)
-    runner = runner_class(
-        env,
-        train_cfg=cfg.runner.model_dump(),
-        log_dir=None,
-        device="cuda",
-    )
+    sim = build_system(cfg)
+    env = build_env(cfg, sim)
+    runner = build_runner(cfg, env, log_dir=None)
 
     _ = runner.load(str(checkpoint), load_cfg={"actor": True})
     policy = runner.get_inference_policy(device="cuda")

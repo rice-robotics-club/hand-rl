@@ -82,7 +82,7 @@ class TargetsTests(unittest.TestCase):
 class StateTests(unittest.TestCase):
     def test_environment_uses_system_time_and_returns_independent_snapshots(self):
         state = make_state()
-        sim = SimpleNamespace(state=state, num_envs=2)
+        sim = SimpleNamespace(state=state, num_envs=2, num_actions=27)
         with tempfile.TemporaryDirectory() as directory:
             path = Path(directory) / "notes.json"
             path.write_text(json.dumps([[0, 0.5, 60]]))
@@ -108,6 +108,10 @@ class StateTests(unittest.TestCase):
         sim._num_envs, sim._dt = 2, 1 / 60
         sim._steps = torch.zeros(2, 1, dtype=torch.int64)
         sim._state = make_state()
+        sim._cfg = SimpleNamespace(action_scale=0.5)
+        sim._default_dofs = torch.zeros(27)
+        sim._dofs_lower = torch.full((27,), -torch.inf)
+        sim._dofs_upper = torch.full((27,), torch.inf)
         position = torch.ones(2, 3)
         joints = torch.ones(2, 7)
 
@@ -118,7 +122,7 @@ class StateTests(unittest.TestCase):
 
         sim._scene = SimpleNamespace(step=lambda: None, reset=reset)
         sim._robot = SimpleNamespace(
-            set_dofs_position=lambda _: None,
+            control_dofs_position=lambda _: None,
             get_pos=lambda: position,
             get_quat=lambda: sim._state.orientation,
             get_vel=lambda: position,

@@ -35,6 +35,7 @@ robopianist = { path = "robots/robopianist", editable = true }
 [project.scripts]
 train = "scripts.train:main"
 evaluate = "scripts.evaluate:main"
+scene = "scripts.scene:main"
 generate_schema = "scripts.generate_schema:main"
 
 [tool.setuptools.packages.find]
@@ -64,7 +65,7 @@ override-dependencies = ["scikit-learn>=1.5", "labmaze; python_version < '0'"]
 venvPath = "."
 venv = ".venv"
 extraPaths = ["robots/robopianist"]
-exclude = ["robots", "third_party", ".venv"]
+exclude = ["robots", "third_party", "logs", "**/.*", "**/__pycache__", "**/node_modules", "*.egg-info"]
 
 # Silence diagnostics caused by untyped third-party libraries (genesis, rsl_rl, etc.)
 reportMissingTypeStubs = "none"

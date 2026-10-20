@@ -44,5 +44,11 @@ system:
   num_envs: 100
   genesis:
     show_viewer: false
+    viewer_options:
+      enable_gui: true
+      # GUI plugins compile kernels on the viewer's thread, which Genesis only allows on
+      # the main thread, so the viewer can't run in a background thread.
+      run_in_thread: false
   piano:
     class_name: src.sim.piano:Piano
+    color_pressed: true

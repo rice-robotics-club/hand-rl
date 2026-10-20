@@ -37,7 +37,10 @@
           "type": "number"
         }
       },
-      "required": ["color", "intensity"],
+      "required": [
+        "color",
+        "intensity"
+      ],
       "title": "AmbientLight",
       "type": "object"
     },
@@ -53,7 +56,10 @@
           "type": "string"
         },
         "action_range": {
-          "default": [-1.0, 1.0],
+          "default": [
+            -1.0,
+            1.0
+          ],
           "description": "Interval `(min, max)` to which samples are linearly rescaled. The Beta distribution naturally produces samples in `[0, 1]`, which are rescaled to this range.",
           "maxItems": 2,
           "minItems": 2,
@@ -134,19 +140,33 @@
         "padding": {
           "default": "none",
           "description": "Padding type to use.",
-          "enum": ["none", "zeros", "reflect", "replicate", "circular"],
+          "enum": [
+            "none",
+            "zeros",
+            "reflect",
+            "replicate",
+            "circular"
+          ],
           "title": "Padding",
           "type": "string"
         },
         "norm": {
           "anyOf": [
             {
-              "enum": ["none", "batch", "layer"],
+              "enum": [
+                "none",
+                "batch",
+                "layer"
+              ],
               "type": "string"
             },
             {
               "items": {
-                "enum": ["none", "batch", "layer"],
+                "enum": [
+                  "none",
+                  "batch",
+                  "layer"
+                ],
                 "type": "string"
               },
               "type": "array"
@@ -195,7 +215,11 @@
         "global_pool": {
           "default": "none",
           "description": "Global pooling type to apply at the end.",
-          "enum": ["none", "max", "avg"],
+          "enum": [
+            "none",
+            "max",
+            "avg"
+          ],
           "title": "Global Pool",
           "type": "string"
         },
@@ -206,7 +230,10 @@
           "type": "boolean"
         }
       },
-      "required": ["output_channels", "kernel_size"],
+      "required": [
+        "output_channels",
+        "kernel_size"
+      ],
       "title": "CNNEncoderConfig",
       "type": "object"
     },
@@ -378,7 +405,11 @@
           "type": "number"
         }
       },
-      "required": ["dir", "color", "intensity"],
+      "required": [
+        "dir",
+        "color",
+        "intensity"
+      ],
       "title": "DirectionalLight",
       "type": "object"
     },
@@ -396,7 +427,12 @@
         "optimizer": {
           "default": "adam",
           "description": "Optimizer used for student updates.",
-          "enum": ["adam", "adamw", "sgd", "rmsprop"],
+          "enum": [
+            "adam",
+            "adamw",
+            "sgd",
+            "rmsprop"
+          ],
           "title": "Optimizer",
           "type": "string"
         },
@@ -434,7 +470,10 @@
         "loss_type": {
           "default": "mse",
           "description": "Loss type.",
-          "enum": ["mse", "huber"],
+          "enum": [
+            "mse",
+            "huber"
+          ],
           "title": "Loss Type",
           "type": "string"
         },
@@ -501,7 +540,10 @@
         "torch_compile_mode": {
           "anyOf": [
             {
-              "enum": ["default", "max-autotune-no-cudagraphs"],
+              "enum": [
+                "default",
+                "max-autotune-no-cudagraphs"
+              ],
               "type": "string"
             },
             {
@@ -613,7 +655,10 @@
           "type": "number"
         },
         "std_range": {
-          "default": [1e-6, 1000000.0],
+          "default": [
+            1e-06,
+            1000000.0
+          ],
           "description": "Minimum and maximum allowed values for the standard deviation for numerical stability.",
           "maxItems": 2,
           "minItems": 2,
@@ -631,7 +676,10 @@
         "std_type": {
           "default": "scalar",
           "description": "Whether the standard deviation is stored directly or in log-space.",
-          "enum": ["scalar", "log"],
+          "enum": [
+            "scalar",
+            "log"
+          ],
           "title": "Std Type",
           "type": "string"
         },
@@ -654,7 +702,11 @@
             "sim_options": {
               "dt": 0.01,
               "floor_height": 0.0,
-              "gravity": [0.0, 0.0, -9.81],
+              "gravity": [
+                0.0,
+                0.0,
+                -9.81
+              ],
               "requires_grad": false,
               "substeps": 1,
               "substeps_local": 1
@@ -695,20 +747,36 @@
               "max_dynamic_constraints": 8,
               "multiplier_collision_broad_phase": 8,
               "noslip_iterations": 0,
-              "noslip_tolerance": 1e-6,
+              "noslip_tolerance": 1e-06,
               "sparse_solve": null,
               "tolerance": null,
               "use_gjk_collision": null,
               "use_hibernation": false
             },
             "vis_options": {
-              "ambient_light": [0.1, 0.1, 0.1],
-              "background_color": [0.04, 0.08, 0.12],
+              "ambient_light": [
+                0.1,
+                0.1,
+                0.1
+              ],
+              "background_color": [
+                0.04,
+                0.08,
+                0.12
+              ],
               "contact_force_scale": 0.01,
               "lights": [
                 {
-                  "color": [1.0, 1.0, 1.0],
-                  "dir": [-1.0, -1.0, -1.0],
+                  "color": [
+                    1.0,
+                    1.0,
+                    1.0
+                  ],
+                  "dir": [
+                    -1.0,
+                    -1.0,
+                    -1.0
+                  ],
                   "intensity": 5.0,
                   "type": "directional"
                 }
@@ -732,9 +800,21 @@
             },
             "viewer_options": {
               "camera_fov": 40.0,
-              "camera_lookat": [0.0, 0.0, 0.5],
-              "camera_pos": [3.5, 0.5, 2.5],
-              "camera_up": [0.0, 0.0, 1.0],
+              "camera_lookat": [
+                0.0,
+                0.0,
+                0.5
+              ],
+              "camera_pos": [
+                3.5,
+                0.5,
+                2.5
+              ],
+              "camera_up": [
+                0.0,
+                0.0,
+                1.0
+              ],
               "enable_default_keybinds": true,
               "enable_gui": false,
               "enable_help_text": true,
@@ -766,7 +846,11 @@
           "type": "number"
         },
         "initial_position": {
-          "default": [0.0, 0.0, 1.0],
+          "default": [
+            0.0,
+            0.0,
+            1.0
+          ],
           "description": "The initial position of the hand base.",
           "maxItems": 3,
           "minItems": 3,
@@ -791,7 +875,10 @@
           "type": "number"
         },
         "base_kp": {
-          "default": [500.0, 50.0],
+          "default": [
+            500.0,
+            50.0
+          ],
           "description": "PD position gains for the base (translation, rotation).",
           "maxItems": 2,
           "minItems": 2,
@@ -807,7 +894,10 @@
           "type": "array"
         },
         "base_kv": {
-          "default": [50.0, 5.0],
+          "default": [
+            50.0,
+            5.0
+          ],
           "description": "PD velocity gains for the base (translation, rotation).",
           "maxItems": 2,
           "minItems": 2,
@@ -827,7 +917,10 @@
           "description": "The configuration for the piano simulation."
         }
       },
-      "required": ["class_name", "piano"],
+      "required": [
+        "class_name",
+        "piano"
+      ],
       "title": "HandPianoConfig",
       "type": "object"
     },
@@ -846,7 +939,11 @@
           "type": "integer"
         },
         "target_center": {
-          "default": [0.0, 0.0, 1.0],
+          "default": [
+            0.0,
+            0.0,
+            1.0
+          ],
           "description": "The center of the region in which reaching targets are sampled.",
           "maxItems": 3,
           "minItems": 3,
@@ -865,7 +962,11 @@
           "type": "array"
         },
         "target_range": {
-          "default": [0.3, 0.3, 0.2],
+          "default": [
+            0.3,
+            0.3,
+            0.2
+          ],
           "description": "The half-extents of the region in which reaching targets are sampled.",
           "maxItems": 3,
           "minItems": 3,
@@ -892,7 +993,9 @@
           "type": "object"
         }
       },
-      "required": ["class_name"],
+      "required": [
+        "class_name"
+      ],
       "title": "HandPianoEnvConfig",
       "type": "object"
     },
@@ -914,7 +1017,10 @@
           "type": "number"
         },
         "std_range": {
-          "default": [1e-6, 1000000.0],
+          "default": [
+            1e-06,
+            1000000.0
+          ],
           "description": "Minimum and maximum allowed values for the standard deviation for numerical stability.",
           "maxItems": 2,
           "minItems": 2,
@@ -932,7 +1038,10 @@
         "std_type": {
           "default": "scalar",
           "description": "Whether the standard deviation is stored directly or in log-space.",
-          "enum": ["scalar", "log"],
+          "enum": [
+            "scalar",
+            "log"
+          ],
           "title": "Std Type",
           "type": "string"
         }
@@ -967,7 +1076,11 @@
           "type": "number"
         }
       },
-      "required": ["initial_step", "final_step", "final_value"],
+      "required": [
+        "initial_step",
+        "final_step",
+        "final_value"
+      ],
       "title": "LinearWeightScheduleConfig",
       "type": "object"
     },
@@ -977,7 +1090,10 @@
       "properties": {
         "class_name": {
           "description": "Logger class name.",
-          "enum": ["WandbLogWriter", "NeptuneLogWriter"],
+          "enum": [
+            "WandbLogWriter",
+            "NeptuneLogWriter"
+          ],
           "title": "Class Name",
           "type": "string"
         },
@@ -987,7 +1103,10 @@
           "type": "string"
         }
       },
-      "required": ["class_name", "project_name"],
+      "required": [
+        "class_name",
+        "project_name"
+      ],
       "title": "LoggerConfig",
       "type": "object"
     },
@@ -1085,7 +1204,9 @@
           "type": "boolean"
         }
       },
-      "required": ["class_name"],
+      "required": [
+        "class_name"
+      ],
       "title": "NullEnvConfig",
       "type": "object"
     },
@@ -1136,7 +1257,10 @@
         "torch_compile_mode": {
           "anyOf": [
             {
-              "enum": ["default", "max-autotune-no-cudagraphs"],
+              "enum": [
+                "default",
+                "max-autotune-no-cudagraphs"
+              ],
               "type": "string"
             },
             {
@@ -1244,7 +1368,12 @@
         "optimizer": {
           "default": "adam",
           "description": "Optimizer used for policy/value updates.",
-          "enum": ["adam", "adamw", "sgd", "rmsprop"],
+          "enum": [
+            "adam",
+            "adamw",
+            "sgd",
+            "rmsprop"
+          ],
           "title": "Optimizer",
           "type": "string"
         },
@@ -1269,7 +1398,10 @@
         "schedule": {
           "default": "adaptive",
           "description": "Learning rate schedule.",
-          "enum": ["adaptive", "fixed"],
+          "enum": [
+            "adaptive",
+            "fixed"
+          ],
           "title": "Schedule",
           "type": "string"
         },
@@ -1380,9 +1512,52 @@
           "const": "src.sim.piano:Piano",
           "title": "Class Name",
           "type": "string"
+        },
+        "color_pressed": {
+          "default": false,
+          "description": "Highlight pressed keys in the viewer by drawing a colored box over them (environment 0 only).",
+          "title": "Color Pressed",
+          "type": "boolean"
+        },
+        "pressed_color": {
+          "default": [
+            1.0,
+            0.2,
+            0.2,
+            0.7
+          ],
+          "description": "The RGBA color used to highlight pressed keys.",
+          "maxItems": 4,
+          "minItems": 4,
+          "prefixItems": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "number"
+            },
+            {
+              "type": "number"
+            },
+            {
+              "type": "number"
+            }
+          ],
+          "title": "Pressed Color",
+          "type": "array"
+        },
+        "pressed_threshold": {
+          "default": 0.5,
+          "description": "The fraction of a key's travel at which it is highlighted as pressed.",
+          "maximum": 1.0,
+          "minimum": 0.0,
+          "title": "Pressed Threshold",
+          "type": "number"
         }
       },
-      "required": ["class_name"],
+      "required": [
+        "class_name"
+      ],
       "title": "PianoConfig",
       "type": "object"
     },
@@ -1440,7 +1615,11 @@
           "type": "number"
         }
       },
-      "required": ["pos", "color", "intensity"],
+      "required": [
+        "pos",
+        "color",
+        "intensity"
+      ],
       "title": "PointLight",
       "type": "object"
     },
@@ -1632,7 +1811,10 @@
         "rnn_type": {
           "default": "lstm",
           "description": "Type of RNN network.",
-          "enum": ["lstm", "gru"],
+          "enum": [
+            "lstm",
+            "gru"
+          ],
           "title": "Rnn Type",
           "type": "string"
         },
@@ -1816,7 +1998,7 @@
           "type": "integer"
         },
         "noslip_tolerance": {
-          "default": 1e-6,
+          "default": 1e-06,
           "exclusiveMinimum": 0,
           "title": "Noslip Tolerance",
           "type": "number"
@@ -2002,9 +2184,26 @@
           "default": null,
           "description": "JSON list of (start seconds, duration seconds, MIDI pitch); None is an empty score.",
           "title": "Notes Path"
+        },
+        "max_episode_length": {
+          "default": 600,
+          "description": "The number of control steps before an environment times out and is reset.",
+          "exclusiveMinimum": 0,
+          "title": "Max Episode Length",
+          "type": "integer"
+        },
+        "reward_weights": {
+          "additionalProperties": {
+            "type": "number"
+          },
+          "description": "The weights for each reward term, keyed by the term's name.",
+          "title": "Reward Weights",
+          "type": "object"
         }
       },
-      "required": ["class_name"],
+      "required": [
+        "class_name"
+      ],
       "title": "RukaEnvConfig",
       "type": "object"
     },
@@ -2017,7 +2216,11 @@
             "sim_options": {
               "dt": 0.01,
               "floor_height": 0.0,
-              "gravity": [0.0, 0.0, -9.81],
+              "gravity": [
+                0.0,
+                0.0,
+                -9.81
+              ],
               "requires_grad": false,
               "substeps": 1,
               "substeps_local": 1
@@ -2058,20 +2261,36 @@
               "max_dynamic_constraints": 8,
               "multiplier_collision_broad_phase": 8,
               "noslip_iterations": 0,
-              "noslip_tolerance": 1e-6,
+              "noslip_tolerance": 1e-06,
               "sparse_solve": null,
               "tolerance": null,
               "use_gjk_collision": null,
               "use_hibernation": false
             },
             "vis_options": {
-              "ambient_light": [0.1, 0.1, 0.1],
-              "background_color": [0.04, 0.08, 0.12],
+              "ambient_light": [
+                0.1,
+                0.1,
+                0.1
+              ],
+              "background_color": [
+                0.04,
+                0.08,
+                0.12
+              ],
               "contact_force_scale": 0.01,
               "lights": [
                 {
-                  "color": [1.0, 1.0, 1.0],
-                  "dir": [-1.0, -1.0, -1.0],
+                  "color": [
+                    1.0,
+                    1.0,
+                    1.0
+                  ],
+                  "dir": [
+                    -1.0,
+                    -1.0,
+                    -1.0
+                  ],
                   "intensity": 5.0,
                   "type": "directional"
                 }
@@ -2095,9 +2314,21 @@
             },
             "viewer_options": {
               "camera_fov": 40.0,
-              "camera_lookat": [0.0, 0.0, 0.5],
-              "camera_pos": [3.5, 0.5, 2.5],
-              "camera_up": [0.0, 0.0, 1.0],
+              "camera_lookat": [
+                0.0,
+                0.0,
+                0.5
+              ],
+              "camera_pos": [
+                3.5,
+                0.5,
+                2.5
+              ],
+              "camera_up": [
+                0.0,
+                0.0,
+                1.0
+              ],
               "enable_default_keybinds": true,
               "enable_gui": false,
               "enable_help_text": true,
@@ -2123,20 +2354,16 @@
           "title": "Class Name",
           "type": "string"
         },
-        "piano": {
-          "$ref": "#/$defs/PianoConfig",
-          "description": "The configuration for the piano simulation."
-        },
         "control_dt": {
           "default": 0.016666666666666666,
-          "description": "Simulated seconds advanced by each VecSystem.step call.",
+          "description": "Simulated seconds advanced by each VecSystem.step call. Overrides genesis.sim_options.dt.",
           "exclusiveMinimum": 0,
           "title": "Control Dt",
           "type": "number"
         },
         "physics_substeps": {
           "default": 2,
-          "description": "Internal physics steps per control step; not policy decisions.",
+          "description": "Internal physics steps per control step; not policy decisions. Overrides genesis.sim_options.substeps.",
           "minimum": 1,
           "title": "Physics Substeps",
           "type": "integer"
@@ -2149,9 +2376,78 @@
           "minItems": 1,
           "title": "Key Pitches",
           "type": "array"
+        },
+        "initial_position": {
+          "default": [
+            0.0,
+            0.0,
+            0.5
+          ],
+          "description": "The initial position of the hand base, above the ground plane.",
+          "maxItems": 3,
+          "minItems": 3,
+          "prefixItems": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "number"
+            },
+            {
+              "type": "number"
+            }
+          ],
+          "title": "Initial Position",
+          "type": "array"
+        },
+        "action_scale": {
+          "default": 0.5,
+          "description": "Scale applied to actions before adding them to the default pose.",
+          "title": "Action Scale",
+          "type": "number"
+        },
+        "base_kp": {
+          "default": [
+            500.0,
+            50.0
+          ],
+          "description": "PD position gains for the base (translation, rotation).",
+          "maxItems": 2,
+          "minItems": 2,
+          "prefixItems": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "number"
+            }
+          ],
+          "title": "Base Kp",
+          "type": "array"
+        },
+        "base_kv": {
+          "default": [
+            50.0,
+            5.0
+          ],
+          "description": "PD velocity gains for the base (translation, rotation).",
+          "maxItems": 2,
+          "minItems": 2,
+          "prefixItems": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "number"
+            }
+          ],
+          "title": "Base Kv",
+          "type": "array"
         }
       },
-      "required": ["class_name", "piano"],
+      "required": [
+        "class_name"
+      ],
       "title": "RukaSimConfig",
       "type": "object"
     },
@@ -2185,7 +2481,11 @@
           "title": "Substeps Local"
         },
         "gravity": {
-          "default": [0.0, 0.0, -9.81],
+          "default": [
+            0.0,
+            0.0,
+            -9.81
+          ],
           "maxItems": 3,
           "minItems": 3,
           "prefixItems": [
@@ -2238,7 +2538,10 @@
           "type": "number"
         }
       },
-      "required": ["final_step", "final_value"],
+      "required": [
+        "final_step",
+        "final_value"
+      ],
       "title": "StepWeightScheduleConfig",
       "type": "object"
     },
@@ -2343,7 +2646,11 @@
           "title": "Realtime Factor"
         },
         "camera_pos": {
-          "default": [3.5, 0.5, 2.5],
+          "default": [
+            3.5,
+            0.5,
+            2.5
+          ],
           "maxItems": 3,
           "minItems": 3,
           "prefixItems": [
@@ -2361,7 +2668,11 @@
           "type": "array"
         },
         "camera_lookat": {
-          "default": [0.0, 0.0, 0.5],
+          "default": [
+            0.0,
+            0.0,
+            0.5
+          ],
           "maxItems": 3,
           "minItems": 3,
           "prefixItems": [
@@ -2379,7 +2690,11 @@
           "type": "array"
         },
         "camera_up": {
-          "default": [0.0, 0.0, 1.0],
+          "default": [
+            0.0,
+            0.0,
+            1.0
+          ],
           "maxItems": 3,
           "minItems": 3,
           "prefixItems": [
@@ -2478,7 +2793,11 @@
           "type": "boolean"
         },
         "background_color": {
-          "default": [0.04, 0.08, 0.12],
+          "default": [
+            0.04,
+            0.08,
+            0.12
+          ],
           "maxItems": 3,
           "minItems": 3,
           "prefixItems": [
@@ -2502,7 +2821,11 @@
           "type": "array"
         },
         "ambient_light": {
-          "default": [0.1, 0.1, 0.1],
+          "default": [
+            0.1,
+            0.1,
+            0.1
+          ],
           "maxItems": 3,
           "minItems": 3,
           "prefixItems": [
@@ -2542,13 +2865,20 @@
         },
         "segmentation_level": {
           "default": "link",
-          "enum": ["entity", "link", "geom"],
+          "enum": [
+            "entity",
+            "link",
+            "geom"
+          ],
           "title": "Segmentation Level",
           "type": "string"
         },
         "render_particle_as": {
           "default": "sphere",
-          "enum": ["sphere", "tet"],
+          "enum": [
+            "sphere",
+            "tet"
+          ],
           "title": "Render Particle As",
           "type": "string"
         },
@@ -2624,7 +2954,11 @@
             "dt": 0.01,
             "substeps": 1,
             "substeps_local": 1,
-            "gravity": [0.0, 0.0, -9.81],
+            "gravity": [
+              0.0,
+              0.0,
+              -9.81
+            ],
             "floor_height": 0.0,
             "requires_grad": false
           }
@@ -2654,7 +2988,7 @@
             "ls_iterations": 50,
             "ls_tolerance": 0.01,
             "noslip_iterations": 0,
-            "noslip_tolerance": 1e-6,
+            "noslip_tolerance": 1e-06,
             "friction_cone": 0,
             "contact_resolution": null,
             "enable_torsional_friction": false,
@@ -2685,8 +3019,16 @@
             "shadow": true,
             "plane_reflection": false,
             "split_envs": false,
-            "background_color": [0.04, 0.08, 0.12],
-            "ambient_light": [0.1, 0.1, 0.1],
+            "background_color": [
+              0.04,
+              0.08,
+              0.12
+            ],
+            "ambient_light": [
+              0.1,
+              0.1,
+              0.1
+            ],
             "visualize_mpm_boundary": false,
             "visualize_sph_boundary": false,
             "visualize_pbd_boundary": false,
@@ -2698,8 +3040,16 @@
             "rendered_envs_idx": null,
             "lights": [
               {
-                "color": [1.0, 1.0, 1.0],
-                "dir": [-1.0, -1.0, -1.0],
+                "color": [
+                  1.0,
+                  1.0,
+                  1.0
+                ],
+                "dir": [
+                  -1.0,
+                  -1.0,
+                  -1.0
+                ],
                 "intensity": 5.0,
                 "type": "directional"
               }
@@ -2713,9 +3063,21 @@
             "run_in_thread": null,
             "refresh_rate": 60,
             "realtime_factor": 1.0,
-            "camera_pos": [3.5, 0.5, 2.5],
-            "camera_lookat": [0.0, 0.0, 0.5],
-            "camera_up": [0.0, 0.0, 1.0],
+            "camera_pos": [
+              3.5,
+              0.5,
+              2.5
+            ],
+            "camera_lookat": [
+              0.0,
+              0.0,
+              0.5
+            ],
+            "camera_up": [
+              0.0,
+              0.0,
+              1.0
+            ],
             "camera_fov": 40.0,
             "enable_help_text": true,
             "enable_default_keybinds": true,
@@ -2739,29 +3101,45 @@
     },
     "broadphase_traversal": {
       "description": "Strategy for broad-phase collision detection in the rigid solver.\n\nBroad-phase quickly eliminates geometry pairs that cannot collide before the more expensive narrow-phase runs.\n\nAt init time, geometry pairs that can never collide are filtered out (same-link, fixed-vs-fixed, contype/conaffinity\nmismatch, etc.), producing a list of *valid pairs*.  The number of valid pairs can be up to O(n_geoms^2) but is\ntypically much smaller after filtering.  The two strategies differ in how they search these valid pairs each step:\n\nAttributes\n----------\nSAP : int\n    Sweep-and-prune.  Sorts geometry AABBs along one axis (O(n_geoms log n_geoms)) then only checks pairs that\n    overlap on that axis.  The sort and sweep are single-threaded, which utilizes GPU cores poorly. However the\n    cost per step is only O(n_geoms log n_geoms + k) where k is the number of axis-overlapping pairs \u2014 typically\n    much less than the full set of valid pairs.\nALL_VS_ALL : int\n    Checks every valid pair every step (AABB overlap test), dispatching them in parallel across GPU threads.  Cost\n    per step is O(n_valid_pairs) which is efficient on GPU when the pair count is moderate, but becomes expensive\n    in scenes with many geometries since the valid pair count grows quadratically. Does not support heterogeneous\n    entities at this time.\n\nNotes\n-----\n``RigidOptions.broadphase_traversal`` defaults to ``None``, which lets the solver choose automatically:\n\n- **CPU backend** \u2192 ``SAP`` (sequential sweep is efficient on CPU).\n- **GPU backend** \u2192 ``ALL_VS_ALL`` (parallel pair checking is faster).\n- **GPU with heterogeneous entities** \u2192 ``SAP`` (``ALL_VS_ALL`` is not compatible with them).",
-      "enum": [0, 1],
+      "enum": [
+        0,
+        1
+      ],
       "title": "broadphase_traversal",
       "type": "integer"
     },
     "constraint_solver": {
-      "enum": [0, 1],
+      "enum": [
+        0,
+        1
+      ],
       "title": "constraint_solver",
       "type": "integer"
     },
     "contact_resolution": {
       "description": "How a contact's normal force and friction force are resolved against each other.\n\n'convex' poses the whole contact as a single smooth convex cost and lets the solver trade the normal residual\nagainst the tangential one. Because the friction limit mu * f_n bounds the pair jointly, a contact sliding fast\nenough that its friction rows demand more force than the cone allows can be answered by raising f_n instead: a body\nlaunched horizontally then lifts off a flat floor, by more the faster it slides. In exchange the whole problem stays\none convex program, which converges predictably on stiff articulated chains and high mass ratios.\n\n'signorini' bounds friction against the normal force the contact has actually developed, so that force is set by the\ncontact's own normal state rather than by tangential demand, and sliding can never inflate it - a sliding body\ndecelerates at mu * g and stays down at any speed. Contacts are resolved by successive approximation, costing extra\nsolver iterations and giving up the single-convex-program guarantee. Prefer it whenever sliding contact matters;\nchoose 'convex' for parity with engines built on that formulation, or if a stiff scene converges better under it.\n\n'signorini' requires the elliptic friction cone, whose rows separate into a normal row and a friction disc - the\npyramidal cone mixes the normal direction into every row and admits no such split - and the Newton constraint\nsolver, the only one that reaches the fixed point of the resulting successive approximation. It implements the\nCoulomb complementarity problem eq. (C.22) of Alexis Duburcq, \"Learning and Optimization of the Locomotion with an\nExoskeleton for Paraplegic People\", PhD thesis, Universite Paris Sciences et Lettres, 2022 (HAL tel-04166955),\nAppendix C, whose Signorini condition is what forbids the normal force from absorbing tangential demand.",
-      "enum": [0, 1],
+      "enum": [
+        0,
+        1
+      ],
       "title": "contact_resolution",
       "type": "integer"
     },
     "friction_cone": {
       "description": "Contact friction cone model, trading numerical robustness for physical accuracy.\n\n'pyramidal' (the default) approximates the friction cone by a pyramid: robust and easy to solve, but the\napproximation makes friction anisotropic (the effective limit depends on the sliding direction). 'elliptic' is\nthe exact cone: friction is isotropic and bounded by its true Euclidean limit sqrt(f_t1^2 + f_t2^2) <= mu * f_n\nin every direction, and with a high 'impratio' it holds resting stacks without the slow tangential creep of\nregularized friction, in return for being harder to solve and more sensitive numerically. Prefer pyramidal for\nrobustness; choose elliptic when isotropic friction or firm static friction matters - e.g. objects that must stay\nput at rest instead of slowly creeping.",
-      "enum": [0, 1],
+      "enum": [
+        0,
+        1
+      ],
       "title": "friction_cone",
       "type": "integer"
     },
     "integrator": {
-      "enum": [0, 1, 2],
+      "enum": [
+        0,
+        1,
+        2
+      ],
       "title": "integrator",
       "type": "integer"
     }
@@ -2835,7 +3213,11 @@
       "title": "System"
     }
   },
-  "required": ["runner", "env", "system"],
+  "required": [
+    "runner",
+    "env",
+    "system"
+  ],
   "title": "TrainingConfig",
   "type": "object"
 }

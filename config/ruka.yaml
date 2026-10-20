@@ -1,6 +1,7 @@
 # yaml-language-server: $schema=schemas/schema.json
 runner:
   class_name: OnPolicyRunner
+  run_name: ruka
   save_interval: 100
   obs_groups:
     actor:
@@ -42,19 +43,36 @@ runner:
     class_name: PPO
   actor:
     class_name: MLPModel
+    obs_normalization: true
     distribution_cfg:
       class_name: GaussianDistribution
   critic:
     class_name: MLPModel
-    distribution_cfg:
-      class_name: GaussianDistribution
+    obs_normalization: true
 env:
   class_name: src.env.ruka_env:RukaEnv
   fingers: 5
   notes_path: null  # Set to a converter's JSON note tuples to load a score.
+  max_episode_length: 600  # 10 simulated seconds at 60 control steps per second
+  reward_weights:
+    velocity_norm: 1.0
 system:
   class_name: src.sim.ruka_sim:RukaSim
   num_envs: 100
   control_dt: 0.016666666666666666  # 60 policy decisions per simulated second
   physics_substeps: 2
   key_pitches: [60, 62, 64, 65, 67]
+  genesis:
+    show_viewer: false  # Use `evaluate` to watch a trained policy
+    rigid_options:
+      enable_self_collision: false
+      # There are usually no more than 20 collision pairs. Setting a low value can
+      # save memory. Violating this condition will raise an exception.
+      max_collision_pairs: 20
+      tolerance: 1.0e-5
+    vis_options:
+      rendered_envs_idx: [0]
+    viewer_options:
+      camera_pos: [2.0, 0.0, 2.5]
+      camera_lookat: [0.0, 0.0, 0.5]
+      camera_fov: 40

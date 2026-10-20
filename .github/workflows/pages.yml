@@ -1,4 +1,4 @@
-name: Deploy Config Schema
+name: Deploy Docs and Config Schema
 
 on:
   push:
@@ -25,7 +25,9 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
+        with:
+          submodules: true
       - name: Setup UV
         uses: astral-sh/setup-uv@v10.2.0
         with:
@@ -34,12 +36,21 @@ jobs:
         run: uv sync --locked --all-extras --dev
       - name: Generate JSONSchema
         run: generate_schema
+      # Submodules are passed explicitly because pdoc hides any not listed in a package's `__all__`.
+      # src.audiotools is excluded until it imports cleanly.
+      - name: Generate API docs
+        run: |
+          pdoc src $(find src -name '*.py' ! -name '__init__.py' ! -path 'src/audiotools/*') '!src\.audiotools' \
+            --docformat google -o site
+      # Keep the schema at the site root so its URL stays the same.
+      - name: Add JSONSchema to site
+        run: cp config/schemas/*.json site/
       - name: Setup Pages
         uses: actions/configure-pages@v5
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
         with:
-          path: "config/schemas/"
+          path: "site/"
       - name: Deploy to GitHub Pages
         id: deployment
         uses: actions/deploy-pages@v5

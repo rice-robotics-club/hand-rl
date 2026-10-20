@@ -53,6 +53,7 @@ sheet = [
 dev = [
   "basedpyright>=1.40.1",
   "docformatter>=1.7.8",
+  "pdoc>=16.0.0",
   "ruff>=0.16.8",
 ]
 

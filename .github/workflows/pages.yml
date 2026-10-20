@@ -35,6 +35,10 @@ jobs:
       # pyaudio (via robopianist) compiles against portaudio.h.
       - name: Install system dependencies
         run: sudo apt-get update && sudo apt-get install -y portaudio19-dev
+      # robopianist raises on import if its soundfont isn't downloaded, unless an rc file names one.
+      # Nothing here plays audio, so point it at the default without fetching the file.
+      - name: Configure robopianist
+        run: echo "DEFAULT_SOUNDFONT=TimGM6mb" > ~/.robopianistrc
       - name: Install the project
         run: uv sync --locked --all-extras --dev
       - name: Generate JSONSchema

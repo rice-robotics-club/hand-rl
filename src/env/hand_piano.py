@@ -64,6 +64,8 @@ def proximity_reward(distances: Tensor, target: Tensor, scale: float) -> Tensor:
 
 
 class HandPianoEnvConfig(Config):
+    """Configuration for the HandPianoEnv environment."""
+
     class_name: Literal["src.env.hand_piano:HandPianoEnv"]
 
     notes_path: str = "samples/right_hand/expected.notes.json"

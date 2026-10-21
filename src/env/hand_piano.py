@@ -18,6 +18,8 @@ def velocity_norm(state: HandPianoState, _: HandPianoAction) -> torch.Tensor:
 
 
 class HandPianoEnvConfig(Config):
+    """Configuration for the HandPianoEnv environment."""
+
     class_name: Literal["src.env.hand_piano:HandPianoEnv"]
 
     max_episode_length: int = 250
@@ -58,7 +60,9 @@ class HandPianoEnv(VecEnv):
             self.num_envs, dtype=torch.long, device=self.device
         )
 
-        self._target_center: Tensor = torch.tensor(cfg.target_center, device=self.device)
+        self._target_center: Tensor = torch.tensor(
+            cfg.target_center, device=self.device
+        )
         self._target_range: Tensor = torch.tensor(cfg.target_range, device=self.device)
         self._target: Tensor = torch.zeros((self.num_envs, 3), device=self.device)
         self._sample_targets(torch.arange(self.num_envs, device=self.device))

@@ -932,63 +932,70 @@
           "title": "Class Name",
           "type": "string"
         },
+        "notes_path": {
+          "default": "samples/right_hand/expected.notes.json",
+          "description": "JSON (start seconds, duration seconds, MIDI pitch) rows; relative to working directory.",
+          "title": "Notes Path",
+          "type": "string"
+        },
+        "key_pitches": {
+          "description": "MIDI pitch of each pressed-state channel; must match piano DOF order.",
+          "items": {
+            "type": "integer"
+          },
+          "maxItems": 88,
+          "minItems": 88,
+          "title": "Key Pitches",
+          "type": "array"
+        },
         "max_episode_length": {
-          "default": 250,
-          "description": "The number of steps before an environment times out and is reset.",
-          "title": "Max Episode Length",
-          "type": "integer"
-        },
-        "target_center": {
-          "default": [
-            0.0,
-            0.0,
-            1.0
-          ],
-          "description": "The center of the region in which reaching targets are sampled.",
-          "maxItems": 3,
-          "minItems": 3,
-          "prefixItems": [
+          "anyOf": [
             {
-              "type": "number"
+              "exclusiveMinimum": 0,
+              "type": "integer"
             },
             {
-              "type": "number"
-            },
-            {
-              "type": "number"
+              "type": "null"
             }
           ],
-          "title": "Target Center",
-          "type": "array"
+          "default": null,
+          "description": "Control steps per episode; None covers score, lead-in, and release tail.",
+          "title": "Max Episode Length"
         },
-        "target_range": {
-          "default": [
-            0.3,
-            0.3,
-            0.2
-          ],
-          "description": "The half-extents of the region in which reaching targets are sampled.",
-          "maxItems": 3,
-          "minItems": 3,
-          "prefixItems": [
-            {
-              "type": "number"
-            },
-            {
-              "type": "number"
-            },
-            {
-              "type": "number"
-            }
-          ],
-          "title": "Target Range",
-          "type": "array"
+        "lead_in_seconds": {
+          "default": 0.5,
+          "description": "Preparation time before the first score note.",
+          "minimum": 0,
+          "title": "Lead In Seconds",
+          "type": "number"
+        },
+        "release_tail_seconds": {
+          "default": 0.5,
+          "description": "Time after the score to reward releasing held keys.",
+          "exclusiveMinimum": 0,
+          "title": "Release Tail Seconds",
+          "type": "number"
+        },
+        "pressed_threshold": {
+          "default": 0.5,
+          "description": "Fraction of key travel counted as an actual press.",
+          "exclusiveMinimum": 0,
+          "maximum": 1,
+          "title": "Pressed Threshold",
+          "type": "number"
+        },
+        "nearness_scale": {
+          "default": 0.02,
+          "description": "Distance scale in meters for 1-tanh(distance/scale).",
+          "exclusiveMinimum": 0,
+          "title": "Nearness Scale",
+          "type": "number"
         },
         "reward_weights": {
           "additionalProperties": {
             "type": "number"
           },
-          "description": "The weights for each reward term, keyed by the term's name.",
+          "description": "Nonnegative weights; nearness requires measured fingertip/key distances.",
           "title": "Reward Weights",
           "type": "object"
         }

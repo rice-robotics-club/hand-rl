@@ -3,7 +3,7 @@
 A floating RUKA hand is driven by PD position targets above a piano.
 """
 
-from typing import TYPE_CHECKING, Literal, override
+from typing import TYPE_CHECKING, Literal, NotRequired, override
 
 import genesis as gs
 import torch
@@ -29,6 +29,11 @@ class HandPianoState(PianoState, TypedTensorDict):
     orientation: Float[torch.Tensor, "*batch 4"]
     velocity: Float[torch.Tensor, "*batch 3"]
     joint_positions: Float[torch.Tensor, "*batch 21"]
+    fingertip_key_distances: NotRequired[Float[torch.Tensor, "*batch 88"]]
+    """Optional measured fingertip-to-press-point distances in meters, in pressed-channel order.
+
+    Not populated until fingertip assignments and piano contact geometry are verified.
+    """
 
 
 type PianoSystem = VecSystem[PianoState, None]

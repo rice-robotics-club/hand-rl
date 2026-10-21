@@ -11,7 +11,12 @@ runner:
         "orientation",
         "joint_positions",
         "pressed",
-        "target",
+        "target_active",
+        "target_remaining",
+        "next_note_valid",
+        "next_note_time",
+        "next_note_duration",
+        "note_correctness",
       ]
     critic:
       [
@@ -20,7 +25,12 @@ runner:
         "orientation",
         "joint_positions",
         "pressed",
-        "target",
+        "target_active",
+        "target_remaining",
+        "next_note_valid",
+        "next_note_time",
+        "next_note_duration",
+        "note_correctness",
       ]
   num_steps_per_env: 24
   algorithm:
@@ -35,14 +45,24 @@ runner:
     obs_normalization: true
 env:
   class_name: src.env.hand_piano:HandPianoEnv
-  max_episode_length: 250
+  notes_path: samples/right_hand/expected.notes.json
+  max_episode_length: null # Derive from the score plus preparation/release time.
+  lead_in_seconds: 0.5
+  release_tail_seconds: 0.5
+  pressed_threshold: 0.5
+  nearness_scale: 0.02
   reward_weights:
-    target_distance: 1.0
-    velocity_norm: 0.1
+    correct_notes: 1.0
+    missed_notes: 1.0
+    extra_notes: 1.0
+    note_nearness: 0.0 # Requires measured fingertip_key_distances in system state.
 system:
   class_name: src.sim.hand_piano:HandPiano
   num_envs: 100
   genesis:
+    sim_options:
+      dt: 0.016666666666666666
+      substeps: 2
     show_viewer: false
     viewer_options:
       enable_gui: true

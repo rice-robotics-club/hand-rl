@@ -11,6 +11,7 @@ from jaxtyping import Float
 from rsl_rl.utils import resolve_callable
 from tensordict import TypedTensorDict
 
+from src.config import Config
 from src.sim.piano import PianoConfig, PianoState
 
 from .vec_system import GenesisConfig, GenesisSystem, VecAction, VecSystem
@@ -29,14 +30,14 @@ class HandPianoState(PianoState, TypedTensorDict):
     orientation: Float[torch.Tensor, "*batch 4"]
     velocity: Float[torch.Tensor, "*batch 3"]
     joint_positions: Float[torch.Tensor, "*batch 21"]
-    fingertip_key_distances: NotRequired[Float[torch.Tensor, "*batch 88"]]
+    # fingertip_key_distances: Float[torch.Tensor, "*batch 88"]
     """Optional measured fingertip-to-press-point distances in meters, in pressed-channel order.
 
     Not populated until fingertip assignments and piano contact geometry are verified.
     """
 
 
-type PianoSystem = VecSystem[PianoState, None]
+type PianoSystem = VecSystem[PianoState, None, Config]
 
 
 class HandPianoAction(VecAction):
@@ -132,6 +133,7 @@ class HandPiano(GenesisSystem[HandPianoState, HandPianoAction, HandPianoConfig])
             joint_positions=torch.zeros(
                 (self._num_envs, self.num_actions - NUM_BASE_DOFS), device=gs.device
             ),
+            # fingertip_key_distances=None,
             pressed=torch.zeros((self._num_envs, 88), device=gs.device),
             batch_size=self._num_envs,
             device=gs.device,

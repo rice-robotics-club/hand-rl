@@ -15,6 +15,7 @@ from torch import Tensor
 
 from src.base_config import Config
 from src.env.piano_targets import PianoTargets
+from src.sim.hand_piano import HandPianoConfig
 
 if TYPE_CHECKING:
     from src.sim import VecSystem
@@ -119,7 +120,7 @@ class HandPianoEnv(VecEnv):
 
     def __init__(
         self,
-        system: VecSystem[HandPianoState, HandPianoAction],
+        system: VecSystem[HandPianoState, HandPianoAction, HandPianoConfig],
         cfg: HandPianoEnvConfig,
     ):
         from src.reward import RewardFunction

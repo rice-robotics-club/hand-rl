@@ -10,7 +10,7 @@ from robopianist.models.piano import piano_mjcf
 from tensordict import TypedTensorDict
 
 from src.base_config import Config
-from src.sim.vec_system import ChildSystem, GenesisSystem
+from src.sim.vec_system import ChildSystem, GenesisConfig, GenesisSystem
 
 if TYPE_CHECKING:
     from genesis.engine.entities import RigidEntity
@@ -40,7 +40,11 @@ class PianoConfig(Config):
 
 
 class Piano(ChildSystem[PianoState, None, PianoConfig]):
-    def __init__(self, cfg: PianoConfig, parent: GenesisSystem):
+    def __init__(
+        self,
+        cfg: PianoConfig,
+        parent: GenesisSystem[PianoState, torch.Tensor, GenesisConfig],
+    ):
         super().__init__(cfg, parent)
         self._scene: gs.Scene = parent.scene
 

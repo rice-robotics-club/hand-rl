@@ -62,6 +62,35 @@ def proximity_reward(distances: Tensor, target: Tensor, scale: float) -> Tensor:
         -1
     ).clamp_min(1)
 
+def key_intensity_reward(
+    target_intensities: Tensor, key_velocities: Tensor, scale: float = 0.2
+) -> Tensor:
+    """Mean exp(-(err/scale)^2) over active keys, where err = intensity - target.
+
+    Both inputs are (envs, keys). A key is active when its target intensity is
+    above zero. Rests give zero. Peaks at 1 on the target, falls off smoothly.
+    """
+    # |key velocity| close enough estimation for intensity ¯\_(ツ)_/¯
+    # Hit-time velocity would be better than the per-step value so uh that would be cool to figure out at some point
+    intensity = key_velocities.abs()
+    active = (target_intensities > 0).float()
+    err = (intensity - target_intensities) / scale
+    score = torch.exp(-err.square()) * active
+    return score.sum(-1) / active.sum(-1).clamp_min(1)
+
+def wrong_key_reward(
+        extra_keys: Tensor
+) -> Tensor: 
+    """
+    flat scalar value. if there's any wrong notes, it's basically just 
+    a flat alarm that activates. 
+    
+    intentionally choosing to avoid scaling per-wrong-note per isabella's advice,
+    one of the research papers found that a flat discouragement did a better job of 
+    making the robot still bold enough to explore playing
+    """
+    # return 1 for the ones that have any extra keys
+    return -extra_keys.any(-1).float()
 
 class HandPianoEnvConfig(Config):
     """Configuration for the HandPianoEnv environment."""

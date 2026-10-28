@@ -19,6 +19,11 @@ if TYPE_CHECKING:
 class PianoState(TypedTensorDict):
     pressed: Float[torch.Tensor, "*batch 88"]
     """The piano keys that are currently pressed, with values in [0.0, 1.0]."""
+    hit_velocity: Float[torch.Tensor, "*batch 88"]
+    """Key speed (fraction of travel per second) on the step each key last crossed the threshold.
+
+    Held until the next hit. Zero before the first hit and after reset.
+    """
 
 
 class PianoAction(TypedTensorDict):
@@ -54,6 +59,7 @@ class Piano(ChildSystem[PianoState, None, PianoConfig]):
 
         self._state: PianoState = PianoState(
             pressed=torch.zeros((self._num_envs, 88), device=gs.device),
+            hit_velocity=torch.zeros((self._num_envs, 88), device=gs.device),
             batch_size=self._num_envs,
             device=gs.device,
         )
@@ -77,7 +83,16 @@ class Piano(ChildSystem[PianoState, None, PianoConfig]):
             # Joint limits are only available once the parent has built the scene.
             self._key_travel = self._piano.get_dofs_limit()[1]
         positions: torch.Tensor = self._piano.get_dofs_position()
+        was_down = self._state.pressed >= self.cfg.pressed_threshold
         _ = self._state.pressed.copy_((positions / self._key_travel).clamp(0.0, 1.0))
+        is_down = self._state.pressed >= self.cfg.pressed_threshold
+        # Hack: we only sample once per control step, so this is the speed at the
+        # end of the step where the key crossed, not the exact instant of the crossing.
+        speed = (self._piano.get_dofs_velocity() / self._key_travel).abs()
+        hit = is_down & ~was_down
+        _ = self._state.hit_velocity.copy_(
+            torch.where(hit, speed, self._state.hit_velocity)
+        )
         if self.cfg.color_pressed and self._scene.viewer is not None:
             self._highlight_pressed()
 
@@ -101,4 +116,10 @@ class Piano(ChildSystem[PianoState, None, PianoConfig]):
     @override
     def reset(self, idx: int | torch.Tensor | None = None) -> None:
         # The parent owns and resets the shared scene; only refresh our state here.
+        if idx is None:
+            _ = self._state.pressed.zero_()
+            _ = self._state.hit_velocity.zero_()
+        else:
+            self._state.pressed[idx] = 0
+            self._state.hit_velocity[idx] = 0
         self.step(None)

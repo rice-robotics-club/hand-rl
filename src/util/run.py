@@ -10,6 +10,11 @@ import time
 import warnings
 from pathlib import Path
 
+import torch
+from tensordict import TensorDict
+
+from src.sim.vec_system import GenesisConfig
+
 warnings.filterwarnings(
     "ignore", message=r".*torch\.jit\.script.*", category=FutureWarning
 )
@@ -44,13 +49,15 @@ def setup_logging():
     logging.getLogger("genesis").propagate = False
 
 
-def build_system(cfg: Config) -> VecSystem:
+def build_system(cfg: Config) -> VecSystem[TensorDict, torch.Tensor, GenesisConfig]:
     """Instantiates the system (simulation) described by `cfg.system`."""
     system_class, _ = resolve_class(cfg.system.model_dump())
     return system_class(cfg.system)
 
 
-def build_env(cfg: Config, system: VecSystem) -> VecEnv:
+def build_env(
+    cfg: Config, system: VecSystem[TensorDict, torch.Tensor, GenesisConfig]
+) -> VecEnv:
     """Instantiates the environment described by `cfg.env` around `system`."""
     env_class, _ = resolve_class(cfg.env.model_dump())
     return env_class(system, cfg.env)

@@ -6,6 +6,7 @@ from tensordict import TensorDict
 
 from src.config import Config
 from src.sim import VecSystem
+from src.sim.vec_system import AnyVecSystem
 
 
 class NullEnvConfig(Config):
@@ -15,8 +16,8 @@ class NullEnvConfig(Config):
 
 
 class NullEnv(VecEnv):
-    def __init__(self, system: VecSystem, cfg: NullEnvConfig):
-        self._system: VecSystem = system
+    def __init__(self, system: AnyVecSystem, cfg: NullEnvConfig):
+        self._system: AnyVecSystem = system
         self.cfg: object = cfg
         self.num_envs: int = self._system.num_envs
         self.num_actions: int = 1

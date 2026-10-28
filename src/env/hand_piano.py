@@ -33,8 +33,10 @@ def key_match_terms(
     count = required.sum(-1).clamp_min(1)
     hits = (actual & required).sum(-1)
     misses = (~actual & required).sum(-1)
-    extras = (actual & ~required).sum(-1)
+    extra_keys = actual & ~required
+    extras = extra_keys.sum(-1)
     return {
+        "extra_keys": extra_keys,
         "correct_notes": hits / count,
         "missed_notes": -misses / count,
         "extra_notes": -extras.float(),
@@ -70,8 +72,8 @@ def key_intensity_reward(
     Both inputs are (envs, keys). A key is active when its target intensity is
     above zero. Rests give zero. Peaks at 1 on the target, falls off smoothly.
     """
-    # |key velocity| close enough estimation for intensity ¯\_(ツ)_/¯
-    # Hit-time velocity would be better than the per-step value so uh that would be cool to figure out at some point
+    # Pass state.hit_velocity: the latched speed from the step each key crossed
+    # the press threshold. Active keys not yet hit read zero and score low.
     intensity = key_velocities.abs()
     active = (target_intensities > 0).float()
     err = (intensity - target_intensities) / scale
@@ -119,9 +121,19 @@ class HandPianoEnvConfig(Config):
             "missed_notes": 1.0,
             "extra_notes": 1.0,
             "note_nearness": 0.0,
+            "key_intensity": 0.0,
+            "wrong_keys": 0.0,
         }
     )
     """Nonnegative weights; nearness requires measured fingertip/key distances."""
+    target_hit_velocity: float = Field(default=1.0, gt=0, allow_inf_nan=False)
+    """Wanted key speed at the hit, in fractions of key travel per second.
+
+    The score has no dynamics yet, so every note uses this one value. Print real
+    hit_velocity values and tune this before turning key_intensity on.
+    """
+    intensity_scale: float = Field(default=0.2, gt=0, allow_inf_nan=False)
+    """Width of the exp(-(err/scale)^2) bump around target_hit_velocity."""
 
     @field_validator("key_pitches")
     @classmethod
@@ -135,7 +147,14 @@ class HandPianoEnvConfig(Config):
     @field_validator("reward_weights")
     @classmethod
     def validate_weights(cls, weights):
-        names = {"correct_notes", "missed_notes", "extra_notes", "note_nearness"}
+        names = {
+            "correct_notes",
+            "missed_notes",
+            "extra_notes",
+            "note_nearness",
+            "key_intensity",
+            "wrong_keys",
+        }
         if set(weights) != names:
             raise ValueError(f"Specify all reward weights: {sorted(names)}")
         if any(not math.isfinite(w) or w < 0 for w in weights.values()):
@@ -196,6 +215,8 @@ class HandPianoEnv(VecEnv):
                 self.missed_notes,
                 self.extra_notes,
                 self.note_nearness,
+                self.key_intensity,
+                self.wrong_keys,
             ],
             weights=cfg.reward_weights,
             batch_size=self.num_envs,
@@ -232,6 +253,18 @@ class HandPianoEnv(VecEnv):
             self._reward_target,
             self.cfg.nearness_scale,
         )
+
+    def key_intensity(self, state, _):
+        """How close the hit-time key speed is to the target, on active keys."""
+        return key_intensity_reward(
+            self._reward_target * self.cfg.target_hit_velocity,
+            state["hit_velocity"],
+            self.cfg.intensity_scale,
+        )
+
+    def wrong_keys(self, state, _):
+        """Flat -1 per env while any unrequested key is pressed."""
+        return wrong_key_reward(self._matches(state)["extra_keys"])
 
     @override
     def get_observations(self) -> TensorDict:

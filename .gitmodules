@@ -4,3 +4,6 @@
 [submodule "robots/robopianist"]
 	path = robots/robopianist
 	url = https://github.com/google-research/robopianist.git
+[submodule "robots/rozart_description"]
+	path = robots/rozart_description
+	url = https://github.com/rice-robotics-club/rozart_description.git

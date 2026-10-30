@@ -241,40 +241,36 @@ class HandPianoEnv(VecEnv):
             {"time_outs": torch.zeros_like(time_outs), "log": log},
         )
 
-    def key_metrics (self, active, goal, threshold): 
-        num_envs = active.shape[0]
-        precision= []
-        recall = []
-        f1_scores = []
-        for env in range(num_envs):
-            tp = 0
-            fp = 0
-            fn = 0
-            for piano_key in range(88):
-                pressed = active[env,piano_key]
-                expected = goal[env, piano_key] 
-                if pressed >= threshold and  expected >= threshold: 
-                    tp += 1
-                elif pressed >= threshold and  expected < threshold: 
-                    fp += 1
-                elif pressed < threshold and  expected >= threshold: 
-                    fn += 1 
-            if (tp + fp) == 0 and (tp + fn) == 0: 
-                precision_value = 1.0 
-                recall_value = 1.0
-                f1_score = 1.0
-            else:      
-                precision_value = (tp/(tp+fp))
-                recall_value = (tp/(tp+fn))
-                if precision_value + recall_value > 0:
-                    f1_score = (2*precision_value*recall_value)/(precision_value + recall_value)
-                else: 
-                    f1_score = 0.0
-            precision.append(precision_value)
-            recall.append(recall_value)
-            f1_scores.append(f1_score)
-        precision = torch.tensor(precision)
-        recall = torch.tensor(recall)
-        f1_scores = torch.tensor(f1_scores)
-        return precision, recall, f1_scores 
+    
 
+def key_metrics(active, goal, threshold=0.5):
+    # Convert values into True/False predictions
+    active_pressed = active >= threshold
+    goal_pressed = goal >= threshold
+
+    # Count true positives, false positives, and false negatives
+    tp = (active_pressed & goal_pressed).sum(dim=-1).float()
+    fp = (active_pressed & ~goal_pressed).sum(dim=-1).float()
+    fn = (~active_pressed & goal_pressed).sum(dim=-1).float()
+
+    # Calculate precision and recall
+    precision = torch.where(
+        tp + fp > 0,
+        tp / (tp + fp).clamp(min=1),
+        torch.where(tp + fn == 0, 1.0, 0.0)
+    )
+
+    recall = torch.where(
+        tp + fn > 0,
+        tp / (tp + fn).clamp(min=1),
+        1.0
+    )
+
+    # Calculate F1 score
+    f1 = torch.where(
+        precision + recall > 0,
+        2 * precision * recall / (precision + recall).clamp(min=1e-8),
+        0.0
+    )
+
+    return precision, recall, f1

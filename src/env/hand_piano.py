@@ -240,3 +240,37 @@ class HandPianoEnv(VecEnv):
             time_outs,
             {"time_outs": torch.zeros_like(time_outs), "log": log},
         )
+
+    
+
+def key_metrics(active, goal, threshold=0.5):
+    # Convert values into True/False predictions
+    active_pressed = active >= threshold
+    goal_pressed = goal >= threshold
+
+    # Count true positives, false positives, and false negatives
+    tp = (active_pressed & goal_pressed).sum(dim=-1).float()
+    fp = (active_pressed & ~goal_pressed).sum(dim=-1).float()
+    fn = (~active_pressed & goal_pressed).sum(dim=-1).float()
+
+    # Calculate precision and recall
+    precision = torch.where(
+        tp + fp > 0,
+        tp / (tp + fp).clamp(min=1),
+        torch.where(tp + fn == 0, 1.0, 0.0)
+    )
+
+    recall = torch.where(
+        tp + fn > 0,
+        tp / (tp + fn).clamp(min=1),
+        1.0
+    )
+
+    # Calculate F1 score
+    f1 = torch.where(
+        precision + recall > 0,
+        2 * precision * recall / (precision + recall).clamp(min=1e-8),
+        0.0
+    )
+
+    return precision, recall, f1

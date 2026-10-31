@@ -133,6 +133,7 @@ class HandPiano(GenesisSystem[HandPianoState, HandPianoAction, HandPianoConfig])
                 (self._num_envs, self.num_actions - NUM_BASE_DOFS), device=gs.device
             ),
             pressed=torch.zeros((self._num_envs, 88), device=gs.device),
+            hit_velocity=torch.zeros((self._num_envs, 88), device=gs.device),
             batch_size=self._num_envs,
             device=gs.device,
         )
@@ -184,3 +185,4 @@ class HandPiano(GenesisSystem[HandPianoState, HandPianoAction, HandPianoConfig])
             torch.as_tensor(self._hand.get_dofs_position())[:, NUM_BASE_DOFS:]
         )
         _ = self._state.pressed.copy_(self._piano.state.pressed)
+        _ = self._state.hit_velocity.copy_(self._piano.state.hit_velocity)

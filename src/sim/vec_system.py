@@ -31,7 +31,7 @@ class VecAction(ABC, TypedTensorDict):
         return action
 
 
-_State = TensorClass | TypedTensorDict | TensorDict | None
+_State = TensorClass | TypedTensorDict | TensorDict
 """Defaults to tensordict, an arbitrary keyed dictionary for use with neural networks."""
 
 _Action = VecAction | TensorClass | TypedTensorDict | torch.Tensor | None
@@ -39,9 +39,9 @@ _Action = VecAction | TensorClass | TypedTensorDict | torch.Tensor | None
 
 
 class VecSystem[
-    S: _State = TensorDict,
-    A: _Action = torch.Tensor,
-    C: Config = Config,
+    S: _State,
+    A: _Action,
+    C: Config,
 ](Protocol):
     """Interface for a vectorized dynamical system.
 
@@ -95,6 +95,9 @@ class VecSystem[
         raise NotImplementedError
 
 
+AnyVecSystem = VecSystem[_State, _Action, Config]
+
+
 class _GenesisConfig(Config):
     """Configuration for a Genesis system."""
 
@@ -116,9 +119,9 @@ class GenesisConfig(Config):
 
 
 class GenesisSystem[
-    S: _State = TensorDict,
-    A: _Action = torch.Tensor,
-    C: GenesisConfig = GenesisConfig,
+    S: _State,
+    A: _Action,
+    C: GenesisConfig,
 ](VecSystem[S, A, C], Protocol):
     """A base class for a dynamic system that is implemented with the Genesis simulator.
 
@@ -147,10 +150,10 @@ class GenesisSystem[
 
 
 class ChildSystem[S: _State, A: _Action, C: Config](VecSystem[S, A, C], Protocol):
-    _parent: VecSystem
+    _parent: VecSystem[_State, _Action, Config]
     _num_envs: int
 
-    def __init__(self, cfg: C, parent: VecSystem):
+    def __init__(self, cfg: C, parent: VecSystem[_State, _Action, Config]):
         super().__init__(cfg)
         self._parent = parent
         self._num_envs = parent.num_envs

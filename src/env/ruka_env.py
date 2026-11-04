@@ -49,8 +49,10 @@ class RukaEnvConfig(Config):
 
 
 class RukaEnv(VecEnv):
-    def __init__(self, sim: VecSystem[RukaState, RukaAction], cfg: RukaEnvConfig):
-        self._sim: VecSystem[RukaState, RukaAction] = sim
+    def __init__(
+        self, sim: VecSystem[RukaState, RukaAction, RukaEnvConfig], cfg: RukaEnvConfig
+    ):
+        self._sim: VecSystem[RukaState, RukaAction, RukaEnvConfig] = sim
         self.num_envs: int = sim.num_envs
         self.num_actions: int = sim.num_actions
         self.device: torch.device | str = sim.state.position.device

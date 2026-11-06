@@ -95,6 +95,15 @@ def wrong_key_reward(
     # return 1 for the ones that have any extra keys
     return -extra_keys.any(-1).float()
 
+def energy_penalty(torques: Tensor, velocities: Tensor) -> Tensor:
+    """
+    Mean energy penalty over all actuators, in Joules per control step.
+    returns sum(|torque * joint velocity|). Positive. The env negates it.
+
+    Penalizes wasted motion and excessive force. Smooth motion! hopefully
+    """
+    return (torques * velocities).abs().sum(-1)
+
 class HandPianoEnvConfig(Config):
     """Configuration for the HandPianoEnv environment."""
 
@@ -124,6 +133,7 @@ class HandPianoEnvConfig(Config):
             "note_nearness": 0.0,
             "key_intensity": 0.0,
             "wrong_keys": 0.0,
+            "energy_penalty": 0.0,
         }
     )
     """Nonnegative weights; nearness requires measured fingertip/key distances."""
@@ -155,6 +165,7 @@ class HandPianoEnvConfig(Config):
             "note_nearness",
             "key_intensity",
             "wrong_keys",
+            "energy_penalty",
         }
         if set(weights) != names:
             raise ValueError(f"Specify all reward weights: {sorted(names)}")
@@ -218,6 +229,7 @@ class HandPianoEnv(VecEnv):
                 self.note_nearness,
                 self.key_intensity,
                 self.wrong_keys,
+                self.energy_penalty,
             ],
             weights=cfg.reward_weights,
             batch_size=self.num_envs,
@@ -266,6 +278,10 @@ class HandPianoEnv(VecEnv):
     def wrong_keys(self, state, _):
         """Flat -1 per env while any unrequested key is pressed."""
         return wrong_key_reward(self._matches(state)["extra_keys"])
+
+    def energy_penalty(self, state, _):
+        """Mean energy penalty over all actuators, in Joules per control step."""
+        return -energy_penalty(state.torques, state.joint_velocities)
 
     @override
     def get_observations(self) -> TensorDict:

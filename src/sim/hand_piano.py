@@ -30,6 +30,10 @@ class HandPianoState(PianoState, TypedTensorDict):
     orientation: Float[torch.Tensor, "*batch 4"]
     velocity: Float[torch.Tensor, "*batch 3"]
     joint_positions: Float[torch.Tensor, "*batch 21"]
+    joint_velocities: Float[torch.Tensor, "*batch 27"]
+    """Velocity of every DOF, base first."""
+    torques: Float[torch.Tensor, "*batch 27"]
+    """Control force on every DOF, base first."""
     # fingertip_key_distances: Float[torch.Tensor, "*batch 88"]
     """Optional measured fingertip-to-press-point distances in meters, in pressed-channel order.
 
@@ -133,6 +137,8 @@ class HandPiano(GenesisSystem[HandPianoState, HandPianoAction, HandPianoConfig])
             joint_positions=torch.zeros(
                 (self._num_envs, self.num_actions - NUM_BASE_DOFS), device=gs.device
             ),
+            joint_velocities=torch.zeros((self._num_envs, 27), device=gs.device),
+            torques=torch.zeros((self._num_envs, 27), device=gs.device),
             # fingertip_key_distances=None,
             pressed=torch.zeros((self._num_envs, 88), device=gs.device),
             hit_velocity=torch.zeros((self._num_envs, 88), device=gs.device),
@@ -186,5 +192,7 @@ class HandPiano(GenesisSystem[HandPianoState, HandPianoAction, HandPianoConfig])
         _ = self._state.joint_positions.copy_(
             torch.as_tensor(self._hand.get_dofs_position())[:, NUM_BASE_DOFS:]
         )
+        _ = self._state.joint_velocities.copy_(self._hand.get_dofs_velocity())
+        _ = self._state.torques.copy_(self._hand.get_dofs_control_force())
         _ = self._state.pressed.copy_(self._piano.state.pressed)
         _ = self._state.hit_velocity.copy_(self._piano.state.hit_velocity)

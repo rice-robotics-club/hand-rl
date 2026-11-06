@@ -56,6 +56,9 @@ env:
     missed_notes: 1.0
     extra_notes: 1.0
     note_nearness: 0.0 # Requires measured fingertip_key_distances in system state.
+    key_intensity: 0.0
+    wrong_keys: 0.0
+    energy_penalty: 0.0005 # raw value is large (~1e3 early), keep small
 system:
   class_name: src.sim.hand_piano:HandPiano
   num_envs: 100

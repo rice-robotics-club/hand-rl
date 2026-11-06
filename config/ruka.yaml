@@ -56,6 +56,7 @@ env:
   max_episode_length: 600  # 10 simulated seconds at 60 control steps per second
   reward_weights:
     velocity_norm: 1.0
+    energy_penalty: 0.005
 system:
   class_name: src.sim.ruka_sim:RukaSim
   num_envs: 100

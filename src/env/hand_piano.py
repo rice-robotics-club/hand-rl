@@ -98,7 +98,7 @@ def wrong_key_reward(
 def energy_penalty(torques: Tensor, velocities: Tensor) -> Tensor:
     """
     Mean energy penalty over all actuators, in Joules per control step.
-    returns -sum(|torque| * |joint velocity|), following the velocity_norm pattern
+    returns sum(|torque * joint velocity|). Positive. The env negates it.
 
     Penalizes wasted motion and excessive force. Smooth motion! hopefully
     """
@@ -281,7 +281,7 @@ class HandPianoEnv(VecEnv):
 
     def energy_penalty(self, state, _):
         """Mean energy penalty over all actuators, in Joules per control step."""
-        return energy_penalty(state.torques, state.velocities)
+        return -energy_penalty(state.torques, state.joint_velocities)
 
     @override
     def get_observations(self) -> TensorDict:

@@ -72,7 +72,7 @@ def build_runner(
         env,
         train_cfg=cfg.runner.model_dump(),
         log_dir=None if log_dir is None else str(log_dir),
-        device="cuda",
+        device=str(env.device),
     )
 
 

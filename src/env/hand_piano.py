@@ -225,7 +225,7 @@ class HandPianoEnv(VecEnv):
         )
 
     def _targets(self):
-        time = self.episode_length_buf.to(torch.float64).unsqueeze(-1) * self._dt
+        time = self.episode_length_buf.to(torch.float32).unsqueeze(-1) * self._dt
         return self._score.sample(time)
 
     def _matches(self, state):

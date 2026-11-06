@@ -9,7 +9,7 @@ import sys
 import tempfile
 import json
 
-from midi_to_notes import midi_to_note_tuples
+from scripts.midi_to_notes import midi_to_note_tuples
 
 
 def musicxml_to_notes(path, *, bpm=120):

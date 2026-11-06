@@ -21,6 +21,7 @@ class Args(argparse.Namespace):
     num_envs: int = 1
     episodes: int = 5
     headless: bool = False
+    audio: bool = False
 
 
 def main():
@@ -43,6 +44,11 @@ def main():
     _ = parser.add_argument("--num-envs", type=int, default=1)
     _ = parser.add_argument("--episodes", type=int, default=5)
     _ = parser.add_argument("--headless", action="store_true")
+    _ = parser.add_argument(
+        "--audio",
+        action="store_true",
+        help="Play environment 0's key presses out loud, in real time.",
+    )
     args: Args = parser.parse_args(namespace=Args())
 
     setup_logging()
@@ -58,6 +64,8 @@ def main():
 
     cfg.system.num_envs = args.num_envs
     cfg.system.genesis.show_viewer = not args.headless
+    if args.audio:
+        cfg.system.piano.audio = True
 
     sim = build_system(cfg)
     env = build_env(cfg, sim)

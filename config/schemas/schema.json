@@ -839,19 +839,59 @@
           "title": "Class Name",
           "type": "string"
         },
-        "workspace": {
-          "default": 2.0,
-          "description": "Base position targets are clamped to [-workspace, workspace] on each axis.",
-          "title": "Workspace",
-          "type": "number"
+        "workspace_lower": {
+          "default": [
+            0.12,
+            -0.7,
+            0.0
+          ],
+          "description": "Lower bounds in meters for the base position targets, per axis.",
+          "maxItems": 3,
+          "minItems": 3,
+          "prefixItems": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "number"
+            },
+            {
+              "type": "number"
+            }
+          ],
+          "title": "Workspace Lower",
+          "type": "array"
+        },
+        "workspace_upper": {
+          "default": [
+            0.35,
+            0.7,
+            0.3
+          ],
+          "description": "Upper bounds in meters for the base position targets, per axis.\n\nThe default box covers the whole keyboard (y from -0.61 to 0.61) and lets the\nfingertips reach from behind the black keys to just in front of the keys, from\npressing height to about 20 cm above them.",
+          "maxItems": 3,
+          "minItems": 3,
+          "prefixItems": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "number"
+            },
+            {
+              "type": "number"
+            }
+          ],
+          "title": "Workspace Upper",
+          "type": "array"
         },
         "initial_position": {
           "default": [
-            0.0,
-            0.0,
-            1.0
+            0.22,
+            -0.015,
+            0.09
           ],
-          "description": "The initial position of the hand base.",
+          "description": "The initial position of the hand base in meters.\n\nThe piano's keys run along y (bass at -y) with the player on the +x side and key\ntops about 2-3.5 cm above z = 0. The default puts the fingertips over the front of\nthe keys, about 2 cm above the white keys in the default posture, with the thumb to\npinky centered on C4 to G4.",
           "maxItems": 3,
           "minItems": 3,
           "prefixItems": [
@@ -868,10 +908,72 @@
           "title": "Initial Position",
           "type": "array"
         },
+        "initial_orientation": {
+          "default": [
+            90.0,
+            0.0,
+            -90.0
+          ],
+          "description": "The initial orientation of the hand base as extrinsic x-y-z Euler angles in degrees.\n\nThe default points the fingers away from the player (-x), with the palm facing\ndown onto the keys and the thumb toward the bass (-y), as for a right hand.",
+          "maxItems": 3,
+          "minItems": 3,
+          "prefixItems": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "number"
+            },
+            {
+              "type": "number"
+            }
+          ],
+          "title": "Initial Orientation",
+          "type": "array"
+        },
+        "initial_joint_positions": {
+          "additionalProperties": {
+            "type": "number"
+          },
+          "description": "Joint angles in radians, by joint name, for the default pose; others are 0.\n\nThe hand starts and resets here, and zero actions hold it here.",
+          "title": "Initial Joint Positions",
+          "type": "object"
+        },
         "action_scale": {
           "default": 0.5,
-          "description": "Scale applied to actions before adding them to the default pose.",
+          "description": "Scale applied to joint actions before adding them to the default pose.\n\nActions are clipped to [-1, 1] first, so each target is within this distance (in\nradians) of the default pose.",
           "title": "Action Scale",
+          "type": "number"
+        },
+        "base_action_scale": {
+          "anyOf": [
+            {
+              "maxItems": 2,
+              "minItems": 2,
+              "prefixItems": [
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "number"
+                }
+              ],
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Scales for the base actions: (translation in meters, rotation in radians).\n\nNone uses action_scale for both.",
+          "title": "Base Action Scale"
+        },
+        "action_smoothing": {
+          "default": 1.0,
+          "description": "Weight of each new action in a moving average of actions; 1 disables smoothing.\n\n0.25 at 60 Hz settles about 63% of the way to a new action in about 4 steps\n(65 ms), so targets cannot jump from one step to the next.",
+          "exclusiveMinimum": 0.0,
+          "maximum": 1.0,
+          "title": "Action Smoothing",
           "type": "number"
         },
         "base_kp": {
@@ -912,6 +1014,29 @@
           "title": "Base Kv",
           "type": "array"
         },
+        "base_force_limit": {
+          "anyOf": [
+            {
+              "maxItems": 2,
+              "minItems": 2,
+              "prefixItems": [
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "number"
+                }
+              ],
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Caps on the base's PD force in newtons and torque in newton-meters, or None.\n\nThe stiff base PD can otherwise drive the hand through the keys; a key needs only\nabout 1 N to press. With 4 substeps, 10 N kept a hard push's penetration to 2 mm.",
+          "title": "Base Force Limit"
+        },
         "piano": {
           "$ref": "#/$defs/PianoConfig",
           "description": "The configuration for the piano simulation."
@@ -926,6 +1051,7 @@
     },
     "HandPianoEnvConfig": {
       "additionalProperties": false,
+      "description": "Configuration for the HandPianoEnv environment.",
       "properties": {
         "class_name": {
           "const": "src.env.hand_piano:HandPianoEnv",
@@ -991,13 +1117,181 @@
           "title": "Nearness Scale",
           "type": "number"
         },
+        "fingering_path": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Optional fingering plan (from scripts/notes_to_fingers.py) for finger_nearness.\n\nnote_nearness always measures each active key from the closest distinct finger.\nfinger_nearness measures it from the plan's finger, or matches note_nearness if\nthis is None.",
+          "title": "Fingering Path"
+        },
         "reward_weights": {
           "additionalProperties": {
             "type": "number"
           },
-          "description": "Nonnegative weights; nearness requires measured fingertip/key distances.",
+          "description": "Nonnegative weight per reward term; at curriculum progress 0 if one is set.",
           "title": "Reward Weights",
           "type": "object"
+        },
+        "final_reward_weights": {
+          "anyOf": [
+            {
+              "additionalProperties": {
+                "type": "number"
+              },
+              "type": "object"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Weights at curriculum progress 1; weights move linearly between the two sets.\n\nNone keeps reward_weights throughout. Progress rises with note recall; see\ncurriculum_start and curriculum_end.",
+          "title": "Final Reward Weights"
+        },
+        "curriculum_start": {
+          "default": 0.1,
+          "description": "Average note recall at which curriculum progress starts rising from 0.",
+          "maximum": 1,
+          "minimum": 0,
+          "title": "Curriculum Start",
+          "type": "number"
+        },
+        "curriculum_end": {
+          "default": 0.7,
+          "description": "Average note recall at which curriculum progress reaches 1.",
+          "maximum": 1,
+          "minimum": 0,
+          "title": "Curriculum End",
+          "type": "number"
+        },
+        "curriculum_rate": {
+          "default": 0.2,
+          "description": "How far one full batch of finished episodes moves the average note recall.\n\nSmaller is smoother; a reward that changes quickly destabilizes PPO's value\nestimates. Progress never decreases.",
+          "exclusiveMinimum": 0,
+          "maximum": 1,
+          "title": "Curriculum Rate",
+          "type": "number"
+        },
+        "posture_scale": {
+          "default": 0.3,
+          "description": "RMS joint deviation in radians at which finger_posture falls to 1/e.",
+          "exclusiveMinimum": 0,
+          "title": "Posture Scale",
+          "type": "number"
+        },
+        "orientation_scale": {
+          "default": 0.3,
+          "description": "Base rotation in radians at which hand_orientation falls to 1/e.",
+          "exclusiveMinimum": 0,
+          "title": "Orientation Scale",
+          "type": "number"
+        },
+        "target_hit_velocity": {
+          "default": 1.0,
+          "description": "Wanted key speed at the hit, in fractions of key travel per second.\n\nThe score has no dynamics yet, so every note uses this one value. Print real\nhit_velocity values and tune this before turning key_intensity on.",
+          "exclusiveMinimum": 0,
+          "title": "Target Hit Velocity",
+          "type": "number"
+        },
+        "color_correctness": {
+          "default": true,
+          "description": "Color environment 0's keys in the viewer by correctness, as scored by the rewards.\n\nWanted keys are target_color until pressed, then correct_color; unwanted pressed\nkeys are wrong_color. Replaces the piano's color_pressed. Does nothing without a\nviewer.",
+          "title": "Color Correctness",
+          "type": "boolean"
+        },
+        "target_color": {
+          "default": [
+            0.2,
+            0.4,
+            1.0,
+            0.7
+          ],
+          "description": "RGBA color for keys the score wants that are not down (blue).",
+          "maxItems": 4,
+          "minItems": 4,
+          "prefixItems": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "number"
+            },
+            {
+              "type": "number"
+            },
+            {
+              "type": "number"
+            }
+          ],
+          "title": "Target Color",
+          "type": "array"
+        },
+        "correct_color": {
+          "default": [
+            0.2,
+            0.9,
+            0.3,
+            0.7
+          ],
+          "description": "RGBA color for wanted keys that are down (green).",
+          "maxItems": 4,
+          "minItems": 4,
+          "prefixItems": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "number"
+            },
+            {
+              "type": "number"
+            },
+            {
+              "type": "number"
+            }
+          ],
+          "title": "Correct Color",
+          "type": "array"
+        },
+        "wrong_color": {
+          "default": [
+            1.0,
+            0.2,
+            0.2,
+            0.7
+          ],
+          "description": "RGBA color for unwanted keys that are down (red).",
+          "maxItems": 4,
+          "minItems": 4,
+          "prefixItems": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "number"
+            },
+            {
+              "type": "number"
+            },
+            {
+              "type": "number"
+            }
+          ],
+          "title": "Wrong Color",
+          "type": "array"
+        },
+        "intensity_scale": {
+          "default": 0.2,
+          "description": "Width of the exp(-(err/scale)^2) bump around target_hit_velocity.",
+          "exclusiveMinimum": 0,
+          "title": "Intensity Scale",
+          "type": "number"
         }
       },
       "required": [
@@ -1522,7 +1816,7 @@
         },
         "color_pressed": {
           "default": false,
-          "description": "Highlight pressed keys in the viewer by drawing a colored box over them (environment 0 only).",
+          "description": "Highlight pressed keys in the viewer by drawing a colored box over them (environment 0 only).\n\nIgnored once something else colors the keys through show_key_colors, such as the\nHandPianoEnv's correctness colors.",
           "title": "Color Pressed",
           "type": "boolean"
         },
@@ -1559,6 +1853,74 @@
           "maximum": 1.0,
           "minimum": 0.0,
           "title": "Pressed Threshold",
+          "type": "number"
+        },
+        "audio": {
+          "default": false,
+          "description": "Play key presses out loud through the default sound output (one environment).\n\nNeeds FluidSynth and a working audio device. Meant for evaluation and viewing, not\ntraining: see audio_realtime.",
+          "title": "Audio",
+          "type": "boolean"
+        },
+        "audio_env": {
+          "default": 0,
+          "description": "The environment whose key presses are played.",
+          "minimum": 0,
+          "title": "Audio Env",
+          "type": "integer"
+        },
+        "audio_realtime": {
+          "default": true,
+          "description": "While audio is on, slow the simulation to real time so notes keep their rhythm.",
+          "title": "Audio Realtime",
+          "type": "boolean"
+        },
+        "soundfont_path": {
+          "default": "/home/lopatoj/Projects/hand-rl/robots/robopianist/robopianist/soundfonts/TimGM6mb.sf2",
+          "description": "The SoundFont (.sf2) used for the piano sound; defaults to robopianist's.",
+          "title": "Soundfont Path",
+          "type": "string"
+        },
+        "audio_driver": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "FluidSynth audio driver, e.g. \"pulseaudio\", \"pipewire\", or \"alsa\"; None picks one.",
+          "title": "Audio Driver"
+        },
+        "audio_gain": {
+          "default": 0.5,
+          "description": "FluidSynth output gain.",
+          "exclusiveMinimum": 0.0,
+          "maximum": 10.0,
+          "title": "Audio Gain",
+          "type": "number"
+        },
+        "full_velocity_speed": {
+          "default": 20.0,
+          "description": "Key speed (fractions of travel per second) that plays at full MIDI velocity, 127.\n\n20 means a key that goes all the way down in 50 ms. This is a starting guess, not a\ncalibrated value; slower hits are proportionally quieter, down to min_velocity.",
+          "exclusiveMinimum": 0.0,
+          "title": "Full Velocity Speed",
+          "type": "number"
+        },
+        "min_velocity": {
+          "default": 30,
+          "description": "The quietest MIDI velocity played, so slow presses stay audible.",
+          "maximum": 127,
+          "minimum": 1,
+          "title": "Min Velocity",
+          "type": "integer"
+        },
+        "press_point_inset": {
+          "default": 0.02,
+          "description": "Distance in meters from a key's front edge to its press point.\n\nPress points sit on the top surface of each key, centered across its width. Black\nkeys end 6 cm short of the white keys' front edge, so their press points are\nfarther back by that much.",
+          "minimum": 0.0,
+          "title": "Press Point Inset",
           "type": "number"
         }
       },

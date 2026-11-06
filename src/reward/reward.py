@@ -43,6 +43,12 @@ class RewardFunction[S: _State, A: _Action]:
 
         self._buf = torch.zeros((batch_size, len(terms)), device=device)
 
+    def set_weights(self, weights: dict[str, float]) -> None:
+        """Replaces the weights of the named terms, e.g. for a curriculum."""
+        for i, term in enumerate(self._terms):
+            if term.__name__ in weights:
+                self._weights[i] = weights[term.__name__]
+
     def log(self) -> dict[str, float]:
         """Returns the mean reward for each term.
 

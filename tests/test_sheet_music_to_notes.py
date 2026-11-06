@@ -7,8 +7,12 @@ import unittest
 from pathlib import Path
 from unittest.mock import patch
 
-from music21 import bar, chord, layout, meter, note, stream, tempo, tie
-from sheet_music_to_notes import musicxml_to_notes, sheet_music_to_notes
+try:
+    from music21 import bar, chord, layout, meter, note, stream, tempo, tie
+except ImportError as error:
+    raise unittest.SkipTest("music21 is not installed") from error
+
+from scripts.sheet_music_to_notes import musicxml_to_notes, sheet_music_to_notes
 
 
 class SheetMusicTests(unittest.TestCase):
@@ -85,8 +89,8 @@ class SheetMusicTests(unittest.TestCase):
             return subprocess.CompletedProcess(command, 0, "", "")
 
         with (
-            patch("sheet_music_to_notes.shutil.which", return_value="Audiveris"),
-            patch("sheet_music_to_notes.subprocess.run", side_effect=fake_recognition),
+            patch("scripts.sheet_music_to_notes.shutil.which", return_value="Audiveris"),
+            patch("scripts.sheet_music_to_notes.subprocess.run", side_effect=fake_recognition),
         ):
             self.assertEqual(
                 sheet_music_to_notes(image), [(0.0, 0.5, 60), (1.0, 0.5, 62)]

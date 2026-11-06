@@ -48,7 +48,7 @@ durations in seconds. No audio processing or Fourier transform is needed.
 
 ```sh
 python -m pip install -r requirements.txt
-python midi_to_notes.py song.mid --no-octave -o notes.json
+python -m scripts.midi_to_notes song.mid --no-octave -o notes.json
 ```
 
 MP3 and WAV inputs are automatically transcribed to MIDI in memory before
@@ -59,7 +59,7 @@ Python environment and any globally installed TensorFlow/NumPy packages:
 ```sh
 uv venv --python 3.10 .venv-audio
 uv pip install --python .venv-audio/Scripts/python.exe -r requirements-audio.txt
-.venv-audio/Scripts/python.exe midi_to_notes.py song.wav --tuples -o notes.json
+.venv-audio/Scripts/python.exe -m scripts.midi_to_notes song.wav --tuples -o notes.json
 ```
 
 Audio transcription is approximate. MIDI inputs skip transcription and do not
@@ -121,7 +121,7 @@ separately and add its executable to PATH, or pass its full path with
 
 ```sh
 python -m pip install -r requirements-sheet.txt
-python sheet_music_to_notes.py sheet.png --bpm 120 -o sheet.notes.json
+python -m scripts.sheet_music_to_notes sheet.png --bpm 120 -o sheet.notes.json
 ```
 
 This converter focuses on right-hand piano music: it takes notes from the first
@@ -149,7 +149,7 @@ create gaps in the timeline. Recognized repeats are expanded by the MIDI exporte
 Use a clear, straight image of one printed score. Recognition can miss or
 misread notes, accidentals, rhythms, or tempo marks; photos and handwriting are
 less reliable. Inspect and correct recognition in Audiveris when needed, then
-export MusicXML and run `python sheet_music_to_notes.py corrected.mxl --musicxml`.
+export MusicXML and run `python -m scripts.sheet_music_to_notes corrected.mxl --musicxml`.
 The image path uses temporary recognition files and does not save a reviewable
 Audiveris project. Increase `--timeout` from its default 300 seconds for slow scans.
 
@@ -160,7 +160,7 @@ right hand. Finger numbers are 1=thumb, 2=index, 3=middle, 4=ring, 5=pinky.
 The default starting position is raised above C4, D4, E4, F4, G4 respectively.
 
 ```powershell
-.venv-audio/Scripts/python.exe notes_to_fingers.py samples/right_hand/expected.notes.json -o robot_finger_movement_plan.json
+.venv-audio/Scripts/python.exe -m scripts.notes_to_fingers samples/right_hand/expected.notes.json -o robot_finger_movement_plan.json
 ```
 
 The JSON includes `starting_position`, finger assignments in `notes`, and timed

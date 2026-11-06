@@ -12,7 +12,7 @@ at 120 BPM. The score lasts 8 seconds and contains 13 individual note events.
 Run image recognition after installing Audiveris:
 
 ```powershell
-.venv-audio/Scripts/python.exe sheet_music_to_notes.py samples/right_hand/right_hand.png -o samples/right_hand/detected.notes.json
+.venv-audio/Scripts/python.exe -m scripts.sheet_music_to_notes samples/right_hand/right_hand.png -o samples/right_hand/detected.notes.json
 ```
 
 Compare the result against `expected.notes.json`. The supplied expected values

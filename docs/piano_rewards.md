@@ -6,6 +6,17 @@ The reward implementation lives in `src/env/hand_piano.py` and uses the existing
 Existing reaching checkpoints have different observations and cannot be resumed
 with this configuration; start a new run.
 
+## Design rule: rewards are pure functions of state and action
+
+Each reward term is a module-level function `term(state, action) -> Tensor` with
+no access to the environment object. Anything a reward needs must be a field of
+`HandPianoEnvState`: the system's `HandPianoState` plus score-derived fields
+(`target_active`, `key_down`, `target_fingers`, `target_key_distances`, ...).
+Each derived field has its own function (`keys_down`, `assign_fingers`,
+`assigned_distances`, ...), and `HandPianoEnv.state_at` assembles them. Fixed
+hyperparameters such as `nearness_scale` are keyword arguments bound once when
+the `RewardFunction` is built.
+
 ## Enabled terms
 
 At each control interval, threshold measured key travel at `pressed_threshold`.
@@ -35,7 +46,7 @@ is held-key correctness, not acoustic or note-onset accuracy.
 The environment reads dt from the system's Genesis configuration. Rewards are
 multiplied by dt so their accumulated scale approximates a time integral;
 changing frequency can still change sampled contacts and discounting. Logged
-reward terms are unweighted rates, before multiplying by dt.
+reward terms are weighted rates, before multiplying by dt.
 
 Episode length is derived from the score plus lead-in and a release tail.
 An explicit shorter episode length is rejected. Completing the score is
@@ -60,15 +71,84 @@ permutation can be configured without changing reward code.
 
 The implemented term is the mean `1 - tanh(distance / nearness_scale)` over
 currently requested keys. Distance is 3D fingertip-to-press-point distance in
-meters, including height. The starting scale is 0.02 m. Rests receive zero.
+meters, including height. The code default scale is 0.02 m; `config/piano.yaml`
+uses 0.1 m. Rests receive zero.
 
-The simulator does not yet supply verified distances, so the nearness weight
-defaults to **zero**. A nonzero weight requires `fingertip_key_distances` in the
-system state and fails clearly if it is missing. A geometry provider must use
-verified fingertip assignments for chords and the same channel order as pressed;
-zeros must never stand in for unavailable measurements. Do not substitute base
-distance or pitch error. A small weight such as 0.2 is an experiment, not a tuned
-value or a guarantee against hovering.
+`HandPiano` measures `fingertip_key_distances` as a (envs, 5, 88) matrix: the
+distance from each fingertip (thumb to pinky) to each key's press point, in
+pressed-channel order. A fingertip is the collision vertex of the distal link
+farthest from its last joint. A press point is on the top of the key, centered
+across its width, `piano.press_point_inset` (default 0.02 m) behind the key's
+front edge. Black keys are measured from their own, shorter front edge.
+
+There are two nearness terms, which differ in which finger they measure:
+
+- **`note_nearness`** (`target_fingers`, `target_key_distances`): each step,
+  requested keys get distinct fingers with the least total distance (all
+  assignments are checked; at most 120 for five keys). Any finger counts, and
+  assignments can change from step to step.
+- **`finger_nearness`** (`planned_fingers`, `planned_key_distances`): each note
+  is measured from the finger in `fingering_path`, a plan from
+  `scripts/notes_to_fingers.py` such as `robot_finger_movement_plan.json`. The
+  plan must contain exactly the score's notes. Without a plan this matches
+  `note_nearness`.
+
+A requested key with no finger (more than five keys at once) is measured from
+the nearest fingertip. The policy does not observe the assignment.
+
+`config/piano.yaml` enables nearness at weight 1.0 with `nearness_scale: 0.1`
+(0.90 at 1 cm, 0.54 at 5 cm, 0.24 at 10 cm, 0.01 at 25 cm), lowers
+`extra_notes` to 0.2, and uses a fixed PPO learning rate of 3e-4. These are
+untested starting points, not tuned values or a guarantee against hovering.
+
+They respond to runs that plateaued at -7.5, the reward for never pressing a
+key (notes are requested for 7.5 s of the episode). In those runs:
+
+- At a 0.02 m scale, nearness was effectively zero beyond a few centimeters
+  (0.00009 at 10 cm), so the hand got no signal once it lifted off the keys.
+- An extra key cost as much as a whole missed note, so avoiding the keys was
+  the safest policy.
+- PPO's adaptive schedule held the learning rate at its 1e-5 floor from the
+  first update, so the policy barely changed.
+
+## Smoothness and posture
+
+- **`action_rate`**: minus the mean squared change between consecutive actions
+  (clipped to [-1, 1]). The previous action is the state field `previous_action`.
+- **`finger_posture`**: `exp(-(rms/posture_scale)^2)` of the joints' deviation
+  from the system's default posture (`posture_error`). The default posture is
+  `HandPiano.initial_joint_positions`, a pianist's hand: curved fingers with
+  the five fingertips in a row about 2 cm above the white keys. Zero actions
+  hold the hand there, and resets return to it.
+- **`hand_orientation`**: `exp(-(angle/orientation_scale)^2)` of the base's
+  rotation away from level, palm down (`orientation_error`).
+
+The system also smooths actions (`action_smoothing`, a moving average) and
+exposes the smoothed targets as `target_offsets`. `config/piano.yaml` adds
+`previous_action` and `target_offsets` to the observations, so checkpoints from
+before this change do not load.
+
+## Contact
+
+Fingertips sink into the keys a little because the PD-driven base can push
+hard. Measured by lowering the hand onto the keys: 2 substeps gave 2.4 mm for a
+4 cm push and 7.4 mm for an 8 cm push; 4 substeps gave 1.2 and 4.0 mm (the same
+as 8). Capping the base force at 10 N (`base_force_limit`) brought the hard
+push to 2.0 mm while normal presses still played. `config/piano.yaml` uses 4
+substeps and that cap.
+
+## Curriculum
+
+The env tracks a running average of note recall (requested key-steps played,
+per finished episode; `curriculum_rate` sets how fast it moves). Progress rises
+from 0 at `curriculum_start` recall to 1 at `curriculum_end`, never decreases,
+and moves each weight linearly from `reward_weights` to `final_reward_weights`.
+`config/piano.yaml` uses this to raise `extra_notes` (0.2 to 1.0) and
+`wrong_keys` (0 to 0.5), and to move nearness credit from any finger
+(`note_nearness`, 1.0 to 0.2) to the planned finger (`finger_nearness`, 0 to
+1.0). Progress restarts at 0 with each training run, including resumed ones.
+TensorBoard shows `curriculum/note_recall` and `curriculum/progress`; logged
+reward terms include their current weight, so a term at weight 0 logs 0.
 
 Intensity and electrical energy are not implemented: they need strike-velocity
 targets and actuator measurements/models respectively. Tests use synthetic

@@ -1,6 +1,6 @@
 """State/timing checks using the pulled interfaces without Genesis or robot assets.
 
-Run with Python 3.13 and project dependencies: python -m unittest scripts.test_piano_state
+Run with Python 3.13 and project dependencies: python -m unittest tests.test_piano_state
 """
 
 import json

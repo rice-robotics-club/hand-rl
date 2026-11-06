@@ -158,9 +158,9 @@ class RukaSim(GenesisSystem[RukaState, RukaAction, RukaSimConfig]):
             velocity=zeros(3),
             joint_positions=zeros(n_dofs),
             joint_velocities=zeros(n_dofs),
-            time=torch.zeros((self._num_envs, 1), dtype=torch.float64, device=device),
+            time=torch.zeros((self._num_envs, 1), dtype=torch.float32, device=device),
             control_dt=torch.full(
-                (self._num_envs, 1), self._dt, dtype=torch.float64, device=device
+                (self._num_envs, 1), self._dt, dtype=torch.float32, device=device
             ),
             fingertip_positions=zeros(15),
             fingertip_valid=zeros(5),
@@ -217,7 +217,7 @@ class RukaSim(GenesisSystem[RukaState, RukaAction, RukaSimConfig]):
         _ = self._state.joint_velocities.copy_(
             torch.as_tensor(self._robot.get_dofs_velocity())
         )
-        _ = self._state.time.copy_(self._steps.to(torch.float64) * self._dt)
+        _ = self._state.time.copy_(self._steps.to(torch.float32) * self._dt)
 
     @override
     def reset(self, idx: int | torch.Tensor | None = None):

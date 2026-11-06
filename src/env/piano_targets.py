@@ -38,7 +38,7 @@ class PianoTargets:
                     "Notes require start >= 0, duration > 0, and a configured MIDI pitch"
                 )
             rows.append((start, duration, pitch))
-        self._notes = torch.tensor(rows, dtype=torch.float64, device=device).reshape(
+        self._notes = torch.tensor(rows, dtype=torch.float32, device=device).reshape(
             -1, 3
         )
         self._pitches = torch.tensor(pitches, device=device)

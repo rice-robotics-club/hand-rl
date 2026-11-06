@@ -64,17 +64,17 @@ def main():
     runner = build_runner(cfg, env, log_dir=None)
 
     _ = runner.load(str(checkpoint), load_cfg={"actor": True})
-    policy = runner.get_inference_policy(device="cuda")
+    policy = runner.get_inference_policy(device=str(env.device))
 
-    obs = env.get_observations().to("cuda")
-    episode_reward = torch.zeros(env.num_envs, device="cuda")
+    obs = env.get_observations().to(str(env.device))
+    episode_reward = torch.zeros(env.num_envs, device=str(env.device))
     completed = 0
     with torch.inference_mode():
         while completed < args.episodes:
             actions = policy(obs)
             obs, rewards, dones, extras = env.step(actions)
-            obs = obs.to("cuda")
-            episode_reward += rewards.to("cuda")
+            obs = obs.to(str(env.device))
+            episode_reward += rewards.to(str(env.device))
 
             for i in dones.nonzero().flatten().tolist():
                 completed += 1

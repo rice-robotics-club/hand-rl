@@ -1,0 +1,2689 @@
+--- git commit ---
+bd7dcbe0e1da0c4f15d5de3098239b04d33d5d7c
+
+
+--- git status ---
+On branch main
+Your branch is up to date with 'origin/main'.
+
+Changes to be committed:
+  (use "git restore --staged <file>..." to unstage)
+	new file:   tests/test_hand_piano_rewards.py
+	new file:   tests/test_notes_to_fingers.py
+	new file:   tests/test_piano_state.py
+	new file:   tests/test_sheet_music_to_notes.py
+
+Changes not staged for commit:
+  (use "git add/rm <file>..." to update what will be committed)
+  (use "git restore <file>..." to discard changes in working directory)
+	modified:   README.md
+	modified:   config/piano.yaml
+	modified:   config/schemas/schema.json
+	modified:   docs/ideas.md
+	modified:   docs/piano_rewards.md
+	modified:   samples/right_hand/README.md
+	modified:   scripts/evaluate.py
+	modified:   scripts/sheet_music_to_notes.py
+	deleted:    scripts/test_hand_piano_rewards.py
+	deleted:    scripts/test_notes_to_fingers.py
+	deleted:    scripts/test_piano_state.py
+	deleted:    scripts/test_sheet_music_to_notes.py
+	modified:   src/env/hand_piano.py
+	modified:   src/reward/reward.py
+	modified:   src/sim/hand_piano.py
+	modified:   src/sim/piano.py
+	modified:   tests/test_hand_piano_rewards.py
+
+Untracked files:
+  (use "git add <file>..." to include in what will be committed)
+	src/sim/piano_audio.py
+	tests/__init__.py
+	tests/test_piano_audio.py
+ 
+
+
+--- git diff ---
+diff --git a/README.md b/README.md
+index 2aa9443..180ef3d 100644
+--- a/README.md
++++ b/README.md
+@@ -5,3 +5,11 @@ what a handy piece of software
+ hand-rl is the repository for the 2026-2027 Rice Robotics hand reinforcement learning project.
+ 
+ The overall goal of this project is to create a rl-trained hand and arm (named Rozart!) that can perform both generalized hand movement, and a specialized subnet that is capable of playing a real piano (with a heavier focus on the piano, since that's the cool part).
++
++## Tests
++
++Tests live in `tests/`. Run them from the repository root:
++
++```sh
++python -m unittest discover -s tests -t .
++```
+diff --git a/config/piano.yaml b/config/piano.yaml
+index 76d1c8b..175210f 100644
+--- a/config/piano.yaml
++++ b/config/piano.yaml
+@@ -17,6 +17,8 @@ runner:
+         "next_note_time",
+         "next_note_duration",
+         "note_correctness",
++        "previous_action",
++        "target_offsets",
+       ]
+     critic:
+       [
+@@ -31,15 +33,21 @@ runner:
+         "next_note_time",
+         "next_note_duration",
+         "note_correctness",
++        "previous_action",
++        "target_offsets",
+       ]
+   num_steps_per_env: 24
+   algorithm:
+     class_name: PPO
++    # The adaptive schedule pinned the rate at its 1e-5 floor from the first update.
++    schedule: fixed
++    learning_rate: 0.0003
+   actor:
+     class_name: MLPModel
+     obs_normalization: true
+     distribution_cfg:
+       class_name: GaussianDistribution
++      init_std: 0.5 # Gentler initial exploration than 1.0; smoother early motion.
+   critic:
+     class_name: MLPModel
+     obs_normalization: true
+@@ -50,25 +58,55 @@ env:
+   lead_in_seconds: 0.5
+   release_tail_seconds: 0.5
+   pressed_threshold: 0.5
+-  nearness_scale: 0.02
++  nearness_scale: 0.1 # 0.90 at 1 cm, 0.54 at 5 cm, 0.24 at 10 cm, 0.01 at 25 cm.
++  # The finger for each note, for finger_nearness. note_nearness credits any free finger.
++  fingering_path: robot_finger_movement_plan.json
++  # In the viewer, color environment 0's keys: blue = wanted, green = wanted and down, red = wrong.
++  color_correctness: true
++  # Curriculum: weights move from reward_weights to final_reward_weights as the running
++  # average of note recall rises from curriculum_start to curriculum_end.
++  curriculum_start: 0.1
++  curriculum_end: 0.7
++  curriculum_rate: 0.2
+   reward_weights:
++    correct_notes: 1.0
++    missed_notes: 1.0
++    extra_notes: 0.2 # Low so exploring near the keys is affordable at first.
++    note_nearness: 1.0 # Any free fingertip near each requested key.
++    finger_nearness: 0.0 # The planned fingertip near each requested key.
++    key_intensity: 0.0 # Tune target_hit_velocity from real hit_velocity values first.
++    wrong_keys: 0.0
++    action_rate: 0.5 # Penalizes jerk: mean squared change between actions.
++    finger_posture: 0.2 # Stay near the pianist posture (curved fingers).
++    hand_orientation: 0.2 # Keep the hand level, palm down.
++  final_reward_weights:
+     correct_notes: 1.0
+     missed_notes: 1.0
+     extra_notes: 1.0
+-    note_nearness: 0.0 # Requires measured fingertip_key_distances in system state.
++    note_nearness: 0.2
++    finger_nearness: 1.0
++    key_intensity: 0.0
++    wrong_keys: 0.5
++    action_rate: 0.5
++    finger_posture: 0.2
++    hand_orientation: 0.2
+ system:
+   class_name: src.sim.hand_piano:HandPiano
+-  num_envs: 100
++  num_envs: 1536
+   genesis:
+     sim_options:
+       dt: 0.016666666666666666
+-      substeps: 2
++      substeps: 4 # 2 let fingertips sink twice as deep into the keys.
+     show_viewer: false
+     viewer_options:
+       enable_gui: true
+       # GUI plugins compile kernels on the viewer's thread, which Genesis only allows on
+       # the main thread, so the viewer can't run in a background thread.
+       run_in_thread: false
++  action_smoothing: 0.25 # Moving average of actions; settles in about 4 steps (65 ms).
++  base_action_scale: [0.1, 0.3] # Base reach from the default pose: meters, radians.
++  base_force_limit: [10.0, 2.0] # Newtons, newton-meters; keeps the base from crushing keys.
+   piano:
+     class_name: src.sim.piano:Piano
+-    color_pressed: true
++    color_pressed: true # Superseded by env.color_correctness while that is on.
++    audio: false # Play key presses out loud in real time; `evaluate --audio` turns this on.
+diff --git a/config/schemas/schema.json b/config/schemas/schema.json
+index 3d6fc65..a50ca1e 100644
+--- a/config/schemas/schema.json
++++ b/config/schemas/schema.json
+@@ -839,19 +839,59 @@
+           "title": "Class Name",
+           "type": "string"
+         },
+-        "workspace": {
+-          "default": 2.0,
+-          "description": "Base position targets are clamped to [-workspace, workspace] on each axis.",
+-          "title": "Workspace",
+-          "type": "number"
++        "workspace_lower": {
++          "default": [
++            0.12,
++            -0.7,
++            0.0
++          ],
++          "description": "Lower bounds in meters for the base position targets, per axis.",
++          "maxItems": 3,
++          "minItems": 3,
++          "prefixItems": [
++            {
++              "type": "number"
++            },
++            {
++              "type": "number"
++            },
++            {
++              "type": "number"
++            }
++          ],
++          "title": "Workspace Lower",
++          "type": "array"
++        },
++        "workspace_upper": {
++          "default": [
++            0.35,
++            0.7,
++            0.3
++          ],
++          "description": "Upper bounds in meters for the base position targets, per axis.\n\nThe default box covers the whole keyboard (y from -0.61 to 0.61) and lets the\nfingertips reach from behind the black keys to just in front of the keys, from\npressing height to about 20 cm above them.",
++          "maxItems": 3,
++          "minItems": 3,
++          "prefixItems": [
++            {
++              "type": "number"
++            },
++            {
++              "type": "number"
++            },
++            {
++              "type": "number"
++            }
++          ],
++          "title": "Workspace Upper",
++          "type": "array"
+         },
+         "initial_position": {
+           "default": [
+-            0.0,
+-            0.0,
+-            1.0
++            0.22,
++            -0.015,
++            0.09
+           ],
+-          "description": "The initial position of the hand base.",
++          "description": "The initial position of the hand base in meters.\n\nThe piano's keys run along y (bass at -y) with the player on the +x side and key\ntops about 2-3.5 cm above z = 0. The default puts the fingertips over the front of\nthe keys, about 2 cm above the white keys in the default posture, with the thumb to\npinky centered on C4 to G4.",
+           "maxItems": 3,
+           "minItems": 3,
+           "prefixItems": [
+@@ -868,12 +908,74 @@
+           "title": "Initial Position",
+           "type": "array"
+         },
++        "initial_orientation": {
++          "default": [
++            90.0,
++            0.0,
++            -90.0
++          ],
++          "description": "The initial orientation of the hand base as extrinsic x-y-z Euler angles in degrees.\n\nThe default points the fingers away from the player (-x), with the palm facing\ndown onto the keys and the thumb toward the bass (-y), as for a right hand.",
++          "maxItems": 3,
++          "minItems": 3,
++          "prefixItems": [
++            {
++              "type": "number"
++            },
++            {
++              "type": "number"
++            },
++            {
++              "type": "number"
++            }
++          ],
++          "title": "Initial Orientation",
++          "type": "array"
++        },
++        "initial_joint_positions": {
++          "additionalProperties": {
++            "type": "number"
++          },
++          "description": "Joint angles in radians, by joint name, for the default pose; others are 0.\n\nThe hand starts and resets here, and zero actions hold it here.",
++          "title": "Initial Joint Positions",
++          "type": "object"
++        },
+         "action_scale": {
+           "default": 0.5,
+-          "description": "Scale applied to actions before adding them to the default pose.",
++          "description": "Scale applied to joint actions before adding them to the default pose.\n\nActions are clipped to [-1, 1] first, so each target is within this distance (in\nradians) of the default pose.",
+           "title": "Action Scale",
+           "type": "number"
+         },
++        "base_action_scale": {
++          "anyOf": [
++            {
++              "maxItems": 2,
++              "minItems": 2,
++              "prefixItems": [
++                {
++                  "type": "number"
++                },
++                {
++                  "type": "number"
++                }
++              ],
++              "type": "array"
++            },
++            {
++              "type": "null"
++            }
++          ],
++          "default": null,
++          "description": "Scales for the base actions: (translation in meters, rotation in radians).\n\nNone uses action_scale for both.",
++          "title": "Base Action Scale"
++        },
++        "action_smoothing": {
++          "default": 1.0,
++          "description": "Weight of each new action in a moving average of actions; 1 disables smoothing.\n\n0.25 at 60 Hz settles about 63% of the way to a new action in about 4 steps\n(65 ms), so targets cannot jump from one step to the next.",
++          "exclusiveMinimum": 0.0,
++          "maximum": 1.0,
++          "title": "Action Smoothing",
++          "type": "number"
++        },
+         "base_kp": {
+           "default": [
+             500.0,
+@@ -912,6 +1014,29 @@
+           "title": "Base Kv",
+           "type": "array"
+         },
++        "base_force_limit": {
++          "anyOf": [
++            {
++              "maxItems": 2,
++              "minItems": 2,
++              "prefixItems": [
++                {
++                  "type": "number"
++                },
++                {
++                  "type": "number"
++                }
++              ],
++              "type": "array"
++            },
++            {
++              "type": "null"
++            }
++          ],
++          "default": null,
++          "description": "Caps on the base's PD force in newtons and torque in newton-meters, or None.\n\nThe stiff base PD can otherwise drive the hand through the keys; a key needs only\nabout 1 N to press. With 4 substeps, 10 N kept a hard push's penetration to 2 mm.",
++          "title": "Base Force Limit"
++        },
+         "piano": {
+           "$ref": "#/$defs/PianoConfig",
+           "description": "The configuration for the piano simulation."
+@@ -926,6 +1051,7 @@
+     },
+     "HandPianoEnvConfig": {
+       "additionalProperties": false,
++      "description": "Configuration for the HandPianoEnv environment.",
+       "properties": {
+         "class_name": {
+           "const": "src.env.hand_piano:HandPianoEnv",
+@@ -991,13 +1117,181 @@
+           "title": "Nearness Scale",
+           "type": "number"
+         },
++        "fingering_path": {
++          "anyOf": [
++            {
++              "type": "string"
++            },
++            {
++              "type": "null"
++            }
++          ],
++          "default": null,
++          "description": "Optional fingering plan (from scripts/notes_to_fingers.py) for finger_nearness.\n\nnote_nearness always measures each active key from the closest distinct finger.\nfinger_nearness measures it from the plan's finger, or matches note_nearness if\nthis is None.",
++          "title": "Fingering Path"
++        },
+         "reward_weights": {
+           "additionalProperties": {
+             "type": "number"
+           },
+-          "description": "Nonnegative weights; nearness requires measured fingertip/key distances.",
++          "description": "Nonnegative weight per reward term; at curriculum progress 0 if one is set.",
+           "title": "Reward Weights",
+           "type": "object"
++        },
++        "final_reward_weights": {
++          "anyOf": [
++            {
++              "additionalProperties": {
++                "type": "number"
++              },
++              "type": "object"
++            },
++            {
++              "type": "null"
++            }
++          ],
++          "default": null,
++          "description": "Weights at curriculum progress 1; weights move linearly between the two sets.\n\nNone keeps reward_weights throughout. Progress rises with note recall; see\ncurriculum_start and curriculum_end.",
++          "title": "Final Reward Weights"
++        },
++        "curriculum_start": {
++          "default": 0.1,
++          "description": "Average note recall at which curriculum progress starts rising from 0.",
++          "maximum": 1,
++          "minimum": 0,
++          "title": "Curriculum Start",
++          "type": "number"
++        },
++        "curriculum_end": {
++          "default": 0.7,
++          "description": "Average note recall at which curriculum progress reaches 1.",
++          "maximum": 1,
++          "minimum": 0,
++          "title": "Curriculum End",
++          "type": "number"
++        },
++        "curriculum_rate": {
++          "default": 0.2,
++          "description": "How far one full batch of finished episodes moves the average note recall.\n\nSmaller is smoother; a reward that changes quickly destabilizes PPO's value\nestimates. Progress never decreases.",
++          "exclusiveMinimum": 0,
++          "maximum": 1,
++          "title": "Curriculum Rate",
++          "type": "number"
++        },
++        "posture_scale": {
++          "default": 0.3,
++          "description": "RMS joint deviation in radians at which finger_posture falls to 1/e.",
++          "exclusiveMinimum": 0,
++          "title": "Posture Scale",
++          "type": "number"
++        },
++        "orientation_scale": {
++          "default": 0.3,
++          "description": "Base rotation in radians at which hand_orientation falls to 1/e.",
++          "exclusiveMinimum": 0,
++          "title": "Orientation Scale",
++          "type": "number"
++        },
++        "target_hit_velocity": {
++          "default": 1.0,
++          "description": "Wanted key speed at the hit, in fractions of key travel per second.\n\nThe score has no dynamics yet, so every note uses this one value. Print real\nhit_velocity values and tune this before turning key_intensity on.",
++          "exclusiveMinimum": 0,
++          "title": "Target Hit Velocity",
++          "type": "number"
++        },
++        "color_correctness": {
++          "default": true,
++          "description": "Color environment 0's keys in the viewer by correctness, as scored by the rewards.\n\nWanted keys are target_color until pressed, then correct_color; unwanted pressed\nkeys are wrong_color. Replaces the piano's color_pressed. Does nothing without a\nviewer.",
++          "title": "Color Correctness",
++          "type": "boolean"
++        },
++        "target_color": {
++          "default": [
++            0.2,
++            0.4,
++            1.0,
++            0.7
++          ],
++          "description": "RGBA color for keys the score wants that are not down (blue).",
++          "maxItems": 4,
++          "minItems": 4,
++          "prefixItems": [
++            {
++              "type": "number"
++            },
++            {
++              "type": "number"
++            },
++            {
++              "type": "number"
++            },
++            {
++              "type": "number"
++            }
++          ],
++          "title": "Target Color",
++          "type": "array"
++        },
++        "correct_color": {
++          "default": [
++            0.2,
++            0.9,
++            0.3,
++            0.7
++          ],
++          "description": "RGBA color for wanted keys that are down (green).",
++          "maxItems": 4,
++          "minItems": 4,
++          "prefixItems": [
++            {
++              "type": "number"
++            },
++            {
++              "type": "number"
++            },
++            {
++              "type": "number"
++            },
++            {
++              "type": "number"
++            }
++          ],
++          "title": "Correct Color",
++          "type": "array"
++        },
++        "wrong_color": {
++          "default": [
++            1.0,
++            0.2,
++            0.2,
++            0.7
++          ],
++          "description": "RGBA color for unwanted keys that are down (red).",
++          "maxItems": 4,
++          "minItems": 4,
++          "prefixItems": [
++            {
++              "type": "number"
++            },
++            {
++              "type": "number"
++            },
++            {
++              "type": "number"
++            },
++            {
++              "type": "number"
++            }
++          ],
++          "title": "Wrong Color",
++          "type": "array"
++        },
++        "intensity_scale": {
++          "default": 0.2,
++          "description": "Width of the exp(-(err/scale)^2) bump around target_hit_velocity.",
++          "exclusiveMinimum": 0,
++          "title": "Intensity Scale",
++          "type": "number"
+         }
+       },
+       "required": [
+@@ -1522,7 +1816,7 @@
+         },
+         "color_pressed": {
+           "default": false,
+-          "description": "Highlight pressed keys in the viewer by drawing a colored box over them (environment 0 only).",
++          "description": "Highlight pressed keys in the viewer by drawing a colored box over them (environment 0 only).\n\nIgnored once something else colors the keys through show_key_colors, such as the\nHandPianoEnv's correctness colors.",
+           "title": "Color Pressed",
+           "type": "boolean"
+         },
+@@ -1560,6 +1854,74 @@
+           "minimum": 0.0,
+           "title": "Pressed Threshold",
+           "type": "number"
++        },
++        "audio": {
++          "default": false,
++          "description": "Play key presses out loud through the default sound output (one environment).\n\nNeeds FluidSynth and a working audio device. Meant for evaluation and viewing, not\ntraining: see audio_realtime.",
++          "title": "Audio",
++          "type": "boolean"
++        },
++        "audio_env": {
++          "default": 0,
++          "description": "The environment whose key presses are played.",
++          "minimum": 0,
++          "title": "Audio Env",
++          "type": "integer"
++        },
++        "audio_realtime": {
++          "default": true,
++          "description": "While audio is on, slow the simulation to real time so notes keep their rhythm.",
++          "title": "Audio Realtime",
++          "type": "boolean"
++        },
++        "soundfont_path": {
++          "default": "/home/lopatoj/Projects/hand-rl/robots/robopianist/robopianist/soundfonts/TimGM6mb.sf2",
++          "description": "The SoundFont (.sf2) used for the piano sound; defaults to robopianist's.",
++          "title": "Soundfont Path",
++          "type": "string"
++        },
++        "audio_driver": {
++          "anyOf": [
++            {
++              "type": "string"
++            },
++            {
++              "type": "null"
++            }
++          ],
++          "default": null,
++          "description": "FluidSynth audio driver, e.g. \"pulseaudio\", \"pipewire\", or \"alsa\"; None picks one.",
++          "title": "Audio Driver"
++        },
++        "audio_gain": {
++          "default": 0.5,
++          "description": "FluidSynth output gain.",
++          "exclusiveMinimum": 0.0,
++          "maximum": 10.0,
++          "title": "Audio Gain",
++          "type": "number"
++        },
++        "full_velocity_speed": {
++          "default": 20.0,
++          "description": "Key speed (fractions of travel per second) that plays at full MIDI velocity, 127.\n\n20 means a key that goes all the way down in 50 ms. This is a starting guess, not a\ncalibrated value; slower hits are proportionally quieter, down to min_velocity.",
++          "exclusiveMinimum": 0.0,
++          "title": "Full Velocity Speed",
++          "type": "number"
++        },
++        "min_velocity": {
++          "default": 30,
++          "description": "The quietest MIDI velocity played, so slow presses stay audible.",
++          "maximum": 127,
++          "minimum": 1,
++          "title": "Min Velocity",
++          "type": "integer"
++        },
++        "press_point_inset": {
++          "default": 0.02,
++          "description": "Distance in meters from a key's front edge to its press point.\n\nPress points sit on the top surface of each key, centered across its width. Black\nkeys end 6 cm short of the white keys' front edge, so their press points are\nfarther back by that much.",
++          "minimum": 0.0,
++          "title": "Press Point Inset",
++          "type": "number"
+         }
+       },
+       "required": [
+diff --git a/docs/ideas.md b/docs/ideas.md
+index fce4b5f..88d74d9 100644
+--- a/docs/ideas.md
++++ b/docs/ideas.md
+@@ -48,7 +48,7 @@ durations in seconds. No audio processing or Fourier transform is needed.
+ 
+ ```sh
+ python -m pip install -r requirements.txt
+-python midi_to_notes.py song.mid --no-octave -o notes.json
++python -m scripts.midi_to_notes song.mid --no-octave -o notes.json
+ ```
+ 
+ MP3 and WAV inputs are automatically transcribed to MIDI in memory before
+@@ -59,7 +59,7 @@ Python environment and any globally installed TensorFlow/NumPy packages:
+ ```sh
+ uv venv --python 3.10 .venv-audio
+ uv pip install --python .venv-audio/Scripts/python.exe -r requirements-audio.txt
+-.venv-audio/Scripts/python.exe midi_to_notes.py song.wav --tuples -o notes.json
++.venv-audio/Scripts/python.exe -m scripts.midi_to_notes song.wav --tuples -o notes.json
+ ```
+ 
+ Audio transcription is approximate. MIDI inputs skip transcription and do not
+@@ -121,7 +121,7 @@ separately and add its executable to PATH, or pass its full path with
+ 
+ ```sh
+ python -m pip install -r requirements-sheet.txt
+-python sheet_music_to_notes.py sheet.png --bpm 120 -o sheet.notes.json
++python -m scripts.sheet_music_to_notes sheet.png --bpm 120 -o sheet.notes.json
+ ```
+ 
+ This converter focuses on right-hand piano music: it takes notes from the first
+@@ -149,7 +149,7 @@ create gaps in the timeline. Recognized repeats are expanded by the MIDI exporte
+ Use a clear, straight image of one printed score. Recognition can miss or
+ misread notes, accidentals, rhythms, or tempo marks; photos and handwriting are
+ less reliable. Inspect and correct recognition in Audiveris when needed, then
+-export MusicXML and run `python sheet_music_to_notes.py corrected.mxl --musicxml`.
++export MusicXML and run `python -m scripts.sheet_music_to_notes corrected.mxl --musicxml`.
+ The image path uses temporary recognition files and does not save a reviewable
+ Audiveris project. Increase `--timeout` from its default 300 seconds for slow scans.
+ 
+@@ -160,7 +160,7 @@ right hand. Finger numbers are 1=thumb, 2=index, 3=middle, 4=ring, 5=pinky.
+ The default starting position is raised above C4, D4, E4, F4, G4 respectively.
+ 
+ ```powershell
+-.venv-audio/Scripts/python.exe notes_to_fingers.py samples/right_hand/expected.notes.json -o robot_finger_movement_plan.json
++.venv-audio/Scripts/python.exe -m scripts.notes_to_fingers samples/right_hand/expected.notes.json -o robot_finger_movement_plan.json
+ ```
+ 
+ The JSON includes `starting_position`, finger assignments in `notes`, and timed
+diff --git a/docs/piano_rewards.md b/docs/piano_rewards.md
+index d81d13d..ca60c65 100644
+--- a/docs/piano_rewards.md
++++ b/docs/piano_rewards.md
+@@ -6,6 +6,17 @@ The reward implementation lives in `src/env/hand_piano.py` and uses the existing
+ Existing reaching checkpoints have different observations and cannot be resumed
+ with this configuration; start a new run.
+ 
++## Design rule: rewards are pure functions of state and action
++
++Each reward term is a module-level function `term(state, action) -> Tensor` with
++no access to the environment object. Anything a reward needs must be a field of
++`HandPianoEnvState`: the system's `HandPianoState` plus score-derived fields
++(`target_active`, `key_down`, `target_fingers`, `target_key_distances`, ...).
++Each derived field has its own function (`keys_down`, `assign_fingers`,
++`assigned_distances`, ...), and `HandPianoEnv.state_at` assembles them. Fixed
++hyperparameters such as `nearness_scale` are keyword arguments bound once when
++the `RewardFunction` is built.
++
+ ## Enabled terms
+ 
+ At each control interval, threshold measured key travel at `pressed_threshold`.
+@@ -35,7 +46,7 @@ is held-key correctness, not acoustic or note-onset accuracy.
+ The environment reads dt from the system's Genesis configuration. Rewards are
+ multiplied by dt so their accumulated scale approximates a time integral;
+ changing frequency can still change sampled contacts and discounting. Logged
+-reward terms are unweighted rates, before multiplying by dt.
++reward terms are weighted rates, before multiplying by dt.
+ 
+ Episode length is derived from the score plus lead-in and a release tail.
+ An explicit shorter episode length is rejected. Completing the score is
+@@ -60,15 +71,84 @@ permutation can be configured without changing reward code.
+ 
+ The implemented term is the mean `1 - tanh(distance / nearness_scale)` over
+ currently requested keys. Distance is 3D fingertip-to-press-point distance in
+-meters, including height. The starting scale is 0.02 m. Rests receive zero.
+-
+-The simulator does not yet supply verified distances, so the nearness weight
+-defaults to **zero**. A nonzero weight requires `fingertip_key_distances` in the
+-system state and fails clearly if it is missing. A geometry provider must use
+-verified fingertip assignments for chords and the same channel order as pressed;
+-zeros must never stand in for unavailable measurements. Do not substitute base
+-distance or pitch error. A small weight such as 0.2 is an experiment, not a tuned
+-value or a guarantee against hovering.
++meters, including height. The code default scale is 0.02 m; `config/piano.yaml`
++uses 0.1 m. Rests receive zero.
++
++`HandPiano` measures `fingertip_key_distances` as a (envs, 5, 88) matrix: the
++distance from each fingertip (thumb to pinky) to each key's press point, in
++pressed-channel order. A fingertip is the collision vertex of the distal link
++farthest from its last joint. A press point is on the top of the key, centered
++across its width, `piano.press_point_inset` (default 0.02 m) behind the key's
++front edge. Black keys are measured from their own, shorter front edge.
++
++There are two nearness terms, which differ in which finger they measure:
++
++- **`note_nearness`** (`target_fingers`, `target_key_distances`): each step,
++  requested keys get distinct fingers with the least total distance (all
++  assignments are checked; at most 120 for five keys). Any finger counts, and
++  assignments can change from step to step.
++- **`finger_nearness`** (`planned_fingers`, `planned_key_distances`): each note
++  is measured from the finger in `fingering_path`, a plan from
++  `scripts/notes_to_fingers.py` such as `robot_finger_movement_plan.json`. The
++  plan must contain exactly the score's notes. Without a plan this matches
++  `note_nearness`.
++
++A requested key with no finger (more than five keys at once) is measured from
++the nearest fingertip. The policy does not observe the assignment.
++
++`config/piano.yaml` enables nearness at weight 1.0 with `nearness_scale: 0.1`
++(0.90 at 1 cm, 0.54 at 5 cm, 0.24 at 10 cm, 0.01 at 25 cm), lowers
++`extra_notes` to 0.2, and uses a fixed PPO learning rate of 3e-4. These are
++untested starting points, not tuned values or a guarantee against hovering.
++
++They respond to runs that plateaued at -7.5, the reward for never pressing a
++key (notes are requested for 7.5 s of the episode). In those runs:
++
++- At a 0.02 m scale, nearness was effectively zero beyond a few centimeters
++  (0.00009 at 10 cm), so the hand got no signal once it lifted off the keys.
++- An extra key cost as much as a whole missed note, so avoiding the keys was
++  the safest policy.
++- PPO's adaptive schedule held the learning rate at its 1e-5 floor from the
++  first update, so the policy barely changed.
++
++## Smoothness and posture
++
++- **`action_rate`**: minus the mean squared change between consecutive actions
++  (clipped to [-1, 1]). The previous action is the state field `previous_action`.
++- **`finger_posture`**: `exp(-(rms/posture_scale)^2)` of the joints' deviation
++  from the system's default posture (`posture_error`). The default posture is
++  `HandPiano.initial_joint_positions`, a pianist's hand: curved fingers with
++  the five fingertips in a row about 2 cm above the white keys. Zero actions
++  hold the hand there, and resets return to it.
++- **`hand_orientation`**: `exp(-(angle/orientation_scale)^2)` of the base's
++  rotation away from level, palm down (`orientation_error`).
++
++The system also smooths actions (`action_smoothing`, a moving average) and
++exposes the smoothed targets as `target_offsets`. `config/piano.yaml` adds
++`previous_action` and `target_offsets` to the observations, so checkpoints from
++before this change do not load.
++
++## Contact
++
++Fingertips sink into the keys a little because the PD-driven base can push
++hard. Measured by lowering the hand onto the keys: 2 substeps gave 2.4 mm for a
++4 cm push and 7.4 mm for an 8 cm push; 4 substeps gave 1.2 and 4.0 mm (the same
++as 8). Capping the base force at 10 N (`base_force_limit`) brought the hard
++push to 2.0 mm while normal presses still played. `config/piano.yaml` uses 4
++substeps and that cap.
++
++## Curriculum
++
++The env tracks a running average of note recall (requested key-steps played,
++per finished episode; `curriculum_rate` sets how fast it moves). Progress rises
++from 0 at `curriculum_start` recall to 1 at `curriculum_end`, never decreases,
++and moves each weight linearly from `reward_weights` to `final_reward_weights`.
++`config/piano.yaml` uses this to raise `extra_notes` (0.2 to 1.0) and
++`wrong_keys` (0 to 0.5), and to move nearness credit from any finger
++(`note_nearness`, 1.0 to 0.2) to the planned finger (`finger_nearness`, 0 to
++1.0). Progress restarts at 0 with each training run, including resumed ones.
++TensorBoard shows `curriculum/note_recall` and `curriculum/progress`; logged
++reward terms include their current weight, so a term at weight 0 logs 0.
+ 
+ Intensity and electrical energy are not implemented: they need strike-velocity
+ targets and actuator measurements/models respectively. Tests use synthetic
+diff --git a/samples/right_hand/README.md b/samples/right_hand/README.md
+index 9babd92..f1b6246 100644
+--- a/samples/right_hand/README.md
++++ b/samples/right_hand/README.md
+@@ -12,7 +12,7 @@ at 120 BPM. The score lasts 8 seconds and contains 13 individual note events.
+ Run image recognition after installing Audiveris:
+ 
+ ```powershell
+-.venv-audio/Scripts/python.exe sheet_music_to_notes.py samples/right_hand/right_hand.png -o samples/right_hand/detected.notes.json
++.venv-audio/Scripts/python.exe -m scripts.sheet_music_to_notes samples/right_hand/right_hand.png -o samples/right_hand/detected.notes.json
+ ```
+ 
+ Compare the result against `expected.notes.json`. The supplied expected values
+diff --git a/scripts/evaluate.py b/scripts/evaluate.py
+index ec9b3f8..7af8976 100644
+--- a/scripts/evaluate.py
++++ b/scripts/evaluate.py
+@@ -21,6 +21,7 @@ class Args(argparse.Namespace):
+     num_envs: int = 1
+     episodes: int = 5
+     headless: bool = False
++    audio: bool = False
+ 
+ 
+ def main():
+@@ -43,6 +44,11 @@ def main():
+     _ = parser.add_argument("--num-envs", type=int, default=1)
+     _ = parser.add_argument("--episodes", type=int, default=5)
+     _ = parser.add_argument("--headless", action="store_true")
++    _ = parser.add_argument(
++        "--audio",
++        action="store_true",
++        help="Play environment 0's key presses out loud, in real time.",
++    )
+     args: Args = parser.parse_args(namespace=Args())
+ 
+     setup_logging()
+@@ -58,6 +64,8 @@ def main():
+ 
+     cfg.system.num_envs = args.num_envs
+     cfg.system.genesis.show_viewer = not args.headless
++    if args.audio:
++        cfg.system.piano.audio = True
+ 
+     sim = build_system(cfg)
+     env = build_env(cfg, sim)
+diff --git a/scripts/sheet_music_to_notes.py b/scripts/sheet_music_to_notes.py
+index 5b32496..ef6d6e3 100644
+--- a/scripts/sheet_music_to_notes.py
++++ b/scripts/sheet_music_to_notes.py
+@@ -9,7 +9,7 @@ import sys
+ import tempfile
+ import json
+ 
+-from midi_to_notes import midi_to_note_tuples
++from scripts.midi_to_notes import midi_to_note_tuples
+ 
+ 
+ def musicxml_to_notes(path, *, bpm=120):
+diff --git a/scripts/test_hand_piano_rewards.py b/scripts/test_hand_piano_rewards.py
+deleted file mode 100644
+index 267c76a..0000000
+--- a/scripts/test_hand_piano_rewards.py
++++ /dev/null
+@@ -1,187 +0,0 @@
+-"""Synthetic reward and task tests; no Genesis scene or robot assets required."""
+-
+-import json
+-import sys
+-import tempfile
+-import unittest
+-from pathlib import Path
+-from types import ModuleType, SimpleNamespace
+-from unittest.mock import patch
+-
+-import torch
+-from tensordict import TypedTensorDict
+-
+-from src.env.hand_piano import (
+-    HandPianoEnv,
+-    HandPianoEnvConfig,
+-    key_match_terms,
+-    proximity_reward,
+-)
+-
+-
+-class KeyState(TypedTensorDict):
+-    pressed: torch.Tensor
+-
+-
+-class FakeSystem:
+-    def __init__(self, dt=0.25):
+-        self.num_envs, self.num_actions = 2, 27
+-        self.cfg = SimpleNamespace(
+-            genesis=SimpleNamespace(sim_options=SimpleNamespace(dt=dt))
+-        )
+-        self.state = KeyState(pressed=torch.zeros(2, 88), batch_size=[2])
+-        self.reset_indices = []
+-
+-    def step(self, actions):
+-        self.state["pressed"].copy_(actions)
+-
+-    def reset(self, idx):
+-        self.reset_indices.append(idx.tolist())
+-        self.state["pressed"][idx] = 0
+-
+-
+-class RewardTests(unittest.TestCase):
+-    def test_correct_missing_extra_and_chords(self):
+-        target = torch.tensor([[1.0, 0, 0], [1.0, 1, 0], [1.0, 0, 0], [0.0, 0, 0]])
+-        actual = torch.tensor([[1.0, 0, 0], [1.0, 0, 0], [1.0, 1, 0], [0.0, 0, 0]])
+-        terms = key_match_terms(actual, target, 0.5)
+-        self.assertEqual(terms["correct_notes"].tolist(), [1, 0.5, 1, 0])
+-        self.assertEqual(terms["missed_notes"].tolist(), [0, -0.5, 0, 0])
+-        self.assertEqual(terms["extra_notes"].tolist(), [0, 0, -1, 0])
+-        self.assertEqual(terms["note_correctness"].tolist(), [1, 0.5, 0.5, 1])
+-
+-    def test_proximity_is_bounded_monotonic_and_silent_on_rests(self):
+-        target = torch.tensor([[1.0], [1.0], [1.0], [0.0]])
+-        result = proximity_reward(
+-            torch.tensor([[0.0], [0.02], [0.1], [0.0]]), target, 0.02
+-        )
+-        self.assertEqual(result[0].item(), 1)
+-        self.assertGreater(result[0], result[1])
+-        self.assertGreater(result[1], result[2])
+-        self.assertEqual(result[3].item(), 0)
+-        for distances in [torch.tensor([[-1.0]]), torch.tensor([[float("nan")]])]:
+-            with self.assertRaises(ValueError):
+-                proximity_reward(distances, torch.ones(1, 1), 0.02)
+-
+-    def test_correct_press_beats_hovering_and_pressing_every_key(self):
+-        target = torch.zeros(1, 88)
+-        target[0, 39] = 1
+-        values = []
+-        for actual in [target, torch.zeros_like(target), torch.ones_like(target)]:
+-            terms = key_match_terms(actual, target, 0.5)
+-            values.append(
+-                sum(
+-                    terms[k] for k in ["correct_notes", "missed_notes", "extra_notes"]
+-                ).item()
+-            )
+-        self.assertEqual(values, [1, -1, -86])
+-        self.assertGreater(
+-            values[0], values[1] + 0.2
+-        )  # Maximum illustrative nearness bonus.
+-
+-    def test_bad_config_is_rejected(self):
+-        for kwargs in [
+-            {"nearness_scale": 0},
+-            {"max_episode_length": 0},
+-            {"reward_weights": {"target_distance": 1}},
+-            {"key_pitches": [60] * 88},
+-        ]:
+-            with self.subTest(kwargs=kwargs), self.assertRaises(ValueError):
+-                HandPianoEnvConfig(
+-                    class_name="src.env.hand_piano:HandPianoEnv", **kwargs
+-                )
+-
+-
+-class TaskTests(unittest.TestCase):
+-    def setUp(self):
+-        # Substitute only physics-facing types. Use the real RewardFunction,
+-        # environment, score sampler, and torch arithmetic.
+-        sim = ModuleType("src.sim")
+-        vec = ModuleType("src.sim.vec_system")
+-        vec.VecAction = TypedTensorDict
+-        vec.VecSystem = object
+-        hand = ModuleType("src.sim.hand_piano")
+-        hand.HandPianoAction = SimpleNamespace(from_tensor=lambda actions: actions)
+-        self.modules = patch.dict(
+-            sys.modules,
+-            {
+-                "src.sim": sim,
+-                "src.sim.vec_system": vec,
+-                "src.sim.hand_piano": hand,
+-            },
+-        )
+-        self.modules.start()
+-        self.addCleanup(self.modules.stop)
+-        self.directory = tempfile.TemporaryDirectory()
+-        self.addCleanup(self.directory.cleanup)
+-        self.path = Path(self.directory.name) / "notes.json"
+-        self.path.write_text(json.dumps([[0, 0.5, 60]]))
+-
+-    def make_env(self, dt=0.25, **overrides):
+-        system = FakeSystem(dt)
+-        cfg = HandPianoEnvConfig(
+-            class_name="src.env.hand_piano:HandPianoEnv",
+-            notes_path=str(self.path),
+-            lead_in_seconds=0,
+-            release_tail_seconds=0.5,
+-            **overrides,
+-        )
+-        return HandPianoEnv(system, cfg), system
+-
+-    def test_hold_release_and_terminal_reset(self):
+-        env, system = self.make_env()
+-        press = torch.zeros(2, 88)
+-        press[:, 39] = 1
+-        first = env.get_observations()
+-        self.assertEqual(first["target_active"][:, 39].tolist(), [1, 1])
+-        for _ in range(2):
+-            obs, reward, done, _ = env.step(press)
+-            self.assertEqual(reward.tolist(), [0.25, 0.25])
+-            self.assertFalse(done.any())
+-        self.assertEqual(obs["target_active"][:, 39].tolist(), [0, 0])
+-        _, reward, _, _ = env.step(press)  # Late release is an extra press.
+-        self.assertEqual(reward.tolist(), [-0.25, -0.25])
+-        obs, reward, done, extras = env.step(torch.zeros_like(press))
+-        self.assertEqual(reward.tolist(), [0, 0])
+-        self.assertTrue(done.all())
+-        self.assertFalse(extras["time_outs"].any())
+-        self.assertEqual(system.reset_indices, [[0, 1]])
+-        self.assertEqual(obs["target_active"][:, 39].tolist(), [1, 1])
+-        self.assertEqual(first["pressed"].sum().item(), 0)
+-
+-    def test_independent_clocks(self):
+-        env, system = self.make_env()
+-        env.episode_length_buf[:] = torch.tensor([3, 1])
+-        obs, _, done, _ = env.step(torch.zeros(2, 88))
+-        self.assertEqual(done.tolist(), [True, False])
+-        self.assertEqual(system.reset_indices, [[0]])
+-        self.assertEqual(env.episode_length_buf.tolist(), [0, 2])
+-        self.assertEqual(obs["target_active"][:, 39].tolist(), [1, 0])
+-
+-    def test_reward_integral_does_not_depend_on_control_frequency(self):
+-        totals = []
+-        for dt in [0.25, 0.125]:
+-            env, _ = self.make_env(dt)
+-            total = 0
+-            for _ in range(env.max_episode_length):
+-                actions = env.get_observations()["target_active"]
+-                _, reward, _, _ = env.step(actions)
+-                total += reward[0].item()
+-            totals.append(total)
+-        self.assertEqual(totals, [0.5, 0.5])
+-
+-    def test_incomplete_episode_or_unavailable_geometry_fails(self):
+-        with self.assertRaisesRegex(ValueError, "at least"):
+-            self.make_env(max_episode_length=1)
+-        weights = {
+-            "correct_notes": 1,
+-            "missed_notes": 1,
+-            "extra_notes": 1,
+-            "note_nearness": 0.2,
+-        }
+-        with self.assertRaisesRegex(ValueError, "measured fingertip_key_distances"):
+-            self.make_env(reward_weights=weights)
+-
+-
+-if __name__ == "__main__":
+-    unittest.main()
+diff --git a/src/env/hand_piano.py b/src/env/hand_piano.py
+index 26370ad..0a19c70 100644
+--- a/src/env/hand_piano.py
++++ b/src/env/hand_piano.py
+@@ -1,36 +1,92 @@
+-"""Score-following rewards for the existing hand/piano system."""
++"""Score-following rewards for the hand/piano system.
+ 
+-from __future__ import annotations
++Every reward term is a pure function of an environment state and an action. Values a
++reward needs are fields of HandPianoEnvState, each derived by its own function from
++the system state and the score.
++"""
+ 
++
++import functools
++import itertools
+ import json
+ import math
+ from pathlib import Path
+-from typing import TYPE_CHECKING, Literal, override
++from typing import Literal, override
+ 
+ import torch
+-from pydantic import Field, field_validator
++from jaxtyping import Float, Int
++from pydantic import Field, field_validator, model_validator
+ from rsl_rl.env import VecEnv
+-from tensordict import TensorDict
+ from torch import Tensor
+ 
+ from src.base_config import Config
+ from src.env.piano_targets import PianoTargets
+-from src.sim.hand_piano import HandPianoConfig
++from src.sim.hand_piano import HandPianoAction, HandPianoConfig, HandPianoState
++from src.sim.vec_system import VecSystem
++
++
++class HandPianoEnvState(HandPianoState):
++    """The system state plus the score-derived fields that rewards and policies use.
++
++    Score fields describe the score at the state's time. Rewards see the state after
++    an action together with the score at the start of that action's interval.
++    """
++
++    target_active: Float[Tensor, "*batch 88"]
++    """1 for keys the score wants held now."""
++    target_remaining: Float[Tensor, "*batch 88"]
++    """Seconds left in each active note; 0 for inactive keys."""
++    next_note_valid: Float[Tensor, "*batch 88"]
++    """1 for keys with an upcoming onset."""
++    next_note_time: Float[Tensor, "*batch 88"]
++    """Seconds until each key's next onset; 0 if none."""
++    next_note_duration: Float[Tensor, "*batch 88"]
++    """Duration of each key's next note; 0 if none."""
++    key_down: Float[Tensor, "*batch 88"]
++    """1 for keys pressed at least pressed_threshold of their travel; see keys_down."""
++    note_correctness: Float[Tensor, "*batch 1"]
++    """Intersection over union of down and wanted keys; see note_correctness."""
++    target_fingers: Int[Tensor, "*batch 88"]
++    """Finger (0 = thumb to 4 = pinky) assigned to each active key, else -1."""
++    target_key_distances: Float[Tensor, "*batch 88"]
++    """Meters from each key to its assigned fingertip, or the nearest one if none."""
++    target_hit_velocity: Float[Tensor, "*batch 88"]
++    """Wanted key speed at the hit for active keys; 0 for inactive keys."""
++    planned_fingers: Int[Tensor, "*batch 88"]
++    """Finger the fingering plan assigns each active key, else -1.
++
++    Equal to target_fingers when no plan is configured.
++    """
++    planned_key_distances: Float[Tensor, "*batch 88"]
++    """Meters from each key to its planned fingertip, or the nearest one if none."""
++    previous_action: Float[Tensor, "*batch 27"]
++    """The action before the one being judged (rewards) or chosen (observations).
++
++    Clipped to [-1, 1], like the actions the system applies. Zero after a reset.
++    """
++    posture_error: Float[Tensor, "*batch 21"]
++    """Wrist and finger angles minus the system's default (pianist) posture, radians."""
++    orientation_error: Float[Tensor, "*batch 1"]
++    """Angle in radians between the base orientation and its default orientation."""
++
++
++# ---------------------------------------------------------------------------
++# Derived state fields
++# ---------------------------------------------------------------------------
++
+ 
+-if TYPE_CHECKING:
+-    from src.sim import VecSystem
+-    from src.sim.hand_piano import HandPianoAction, HandPianoState
++def keys_down(pressed: Tensor, threshold: float) -> Tensor:
++    """1.0 where a key has traveled at least `threshold` of the way down."""
++    return (pressed >= threshold).float()
+ 
+ 
+-def key_match_terms(
+-    pressed: Tensor, target: Tensor, threshold: float
+-) -> dict[str, Tensor]:
+-    """Compare activated keys with the score, without rewarding 87 idle keys.
++def key_match_terms(key_down: Tensor, target: Tensor) -> dict[str, Tensor]:
++    """Compare down keys with the score, without rewarding 87 idle keys.
+ 
+     Hits and misses are normalized by chord size; each extra key costs one.
+     Rests produce zero hits/misses and still penalize extra keys.
+     """
+-    actual, required = pressed >= threshold, target.bool()
++    actual, required = key_down.bool(), target.bool()
+     count = required.sum(-1).clamp_min(1)
+     hits = (actual & required).sum(-1)
+     misses = (~actual & required).sum(-1)
+@@ -49,11 +105,130 @@ def key_match_terms(
+     }
+ 
+ 
++def assign_fingers(distances: Tensor, active: Tensor) -> Tensor:
++    """Assign each active key its own finger, minimizing the total fingertip distance.
++
++    distances is (envs, fingers, keys); active is (envs, keys). Returns (envs, keys)
++    finger indices, -1 for keys left unassigned. Every assignment of up to
++    `fingers` active keys to distinct fingers is checked, which is cheap for one
++    hand (at most 5! = 120). If more keys are active than there are fingers, the
++    extra keys are left unassigned.
++    """
++    envs, fingers, keys = distances.shape
++    slots = min(fingers, keys)
++    active = active.bool()
++    # Pick up to `slots` active keys per environment (active keys sort first).
++    key_idx = active.float().topk(slots, dim=-1).indices  # (envs, slots)
++    valid = active.gather(-1, key_idx)
++    slot_dist = distances.gather(-1, key_idx.unsqueeze(1).expand(-1, fingers, -1))
++    perms = torch.tensor(
++        list(itertools.permutations(range(fingers), slots)), device=distances.device
++    )  # (perms, slots): the finger for each slot.
++    cost = slot_dist[:, perms, torch.arange(slots, device=distances.device)]
++    best = (cost * valid.unsqueeze(1)).sum(-1).argmin(-1)
++    slot_fingers = torch.where(valid, perms[best], -1)
++    result = torch.full((envs, keys), -1, device=distances.device)
++    return result.scatter(-1, key_idx, slot_fingers)
++
++
++def assigned_distances(distances: Tensor, fingers: Tensor) -> Tensor:
++    """Distance from each key to its assigned finger, or to the nearest finger if none.
++
++    distances is (envs, fingers, keys); fingers is (envs, keys) from assign_fingers or
++    a fingering plan. Returns measured (envs, keys) distances, with no placeholders.
++    """
++    chosen = distances.gather(1, fingers.clamp_min(0).unsqueeze(1)).squeeze(1)
++    return torch.where(fingers >= 0, chosen, distances.min(1).values)
++
++
++class FingeringPlan:
++    """Which finger should play each key over time, from a planned fingering.
++
++    Reads the "notes" of a plan written by scripts/notes_to_fingers.py: entries with
++    start, duration, pitch, and finger (1 = thumb to 5 = pinky). Active intervals are
++    [start, end), like the score.
++    """
++
++    def __init__(self, path, score_notes, pitches, lead_in, device):
++        plan = json.loads(Path(path).read_text(encoding="utf-8-sig"))
++        notes = plan["notes"] if isinstance(plan, dict) else plan
++        rows = [(n["start"], n["duration"], n["pitch"], n["finger"]) for n in notes]
++        if sorted(r[:3] for r in rows) != sorted(tuple(n) for n in score_notes):
++            raise ValueError(
++                f"Fingering plan {path} must contain exactly the score's notes"
++            )
++        if any(f not in range(1, 6) for *_, f in rows):
++            raise ValueError("Fingering plan fingers must be 1 (thumb) to 5 (pinky)")
++        key = {pitch: i for i, pitch in enumerate(pitches)}
++        self._start = torch.tensor(
++            [r[0] + lead_in for r in rows], dtype=torch.float64, device=device
++        )
++        self._end = self._start + torch.tensor(
++            [r[1] for r in rows], dtype=torch.float64, device=device
++        )
++        self._finger = torch.tensor([r[3] - 1 for r in rows], device=device)
++        self._key = torch.tensor([key[r[2]] for r in rows], device=device)
++        self._num_keys = len(pitches)
++
++    def sample(self, time: Tensor) -> Tensor:
++        """Planned finger per key at each environment's time (envs, 1); -1 where none."""
++        playing = (self._start <= time) & (time < self._end)  # (envs, notes)
++        fingers = torch.where(playing, self._finger, -1)
++        result = torch.full(
++            (time.shape[0], self._num_keys), -1, device=time.device
++        )
++        # Notes not playing scatter -1 and leave the key unassigned.
++        return result.scatter_reduce(
++            -1, self._key.expand_as(fingers), fingers, reduce="amax"
++        )
++
++
++def orientation_error(orientation: Tensor, default: Tensor) -> Tensor:
++    """Rotation angle in radians from `default` to each (w, x, y, z) quaternion, as (..., 1)."""
++    dot = (orientation * default).sum(-1, keepdim=True).abs().clamp(max=1.0)
++    return 2 * torch.acos(dot)
++
++
++def flat_action(action: HandPianoAction) -> Tensor:
++    """The action as one (..., 27) tensor clipped to [-1, 1], as the system applies it."""
++    return torch.cat([action.base_pose, action.joint_positions], dim=-1).clamp(-1, 1)
++
++
++def key_colors(
++    key_down: Tensor,
++    target: Tensor,
++    target_color: tuple[float, float, float, float],
++    correct_color: tuple[float, float, float, float],
++    wrong_color: tuple[float, float, float, float],
++) -> Tensor:
++    """RGBA color per key showing correctness: (..., keys) inputs to (..., keys, 4).
++
++    Wanted keys that are up get target_color, wanted keys that are down get
++    correct_color, and unwanted keys that are down get wrong_color. Other keys are
++    transparent (zero alpha).
++    """
++    down, wanted = key_down.bool().unsqueeze(-1), target.bool().unsqueeze(-1)
++    def color(rgba):
++        return torch.tensor(rgba, device=key_down.device)
++
++    none = torch.zeros(4, device=key_down.device)
++    return torch.where(
++        wanted,
++        torch.where(down, color(correct_color), color(target_color)),
++        torch.where(down, color(wrong_color), none),
++    )
++
++
++# ---------------------------------------------------------------------------
++# Reward helpers on plain tensors
++# ---------------------------------------------------------------------------
++
++
+ def proximity_reward(distances: Tensor, target: Tensor, scale: float) -> Tensor:
+     """Mean 1-tanh(d/scale) over active keys; zero during rests.
+ 
+-    Distances must be measured 3D distances in meters for assigned fingertip/key
+-    pairs, in the same order as pressed. Not pitch or hand-base errors.
++    Distances are measured 3D distances in meters from each key's press point to the
++    fingertip assigned to it, in pressed order.
+     """
+     if distances.shape != target.shape:
+         raise ValueError("Fingertip/key distances must match the target key shape")
+@@ -65,6 +240,7 @@ def proximity_reward(distances: Tensor, target: Tensor, scale: float) -> Tensor:
+         -1
+     ).clamp_min(1)
+ 
++
+ def key_intensity_reward(
+     target_intensities: Tensor, key_velocities: Tensor, scale: float = 0.2
+ ) -> Tensor:
+@@ -95,6 +271,95 @@ def wrong_key_reward(
+     # return 1 for the ones that have any extra keys
+     return -extra_keys.any(-1).float()
+ 
++
++# ---------------------------------------------------------------------------
++# Reward terms: pure functions of (state, action)
++# ---------------------------------------------------------------------------
++
++
++def correct_notes(state: HandPianoEnvState, _: HandPianoAction) -> Tensor:
++    """Fraction of requested notes down during this control interval."""
++    return key_match_terms(state.key_down, state.target_active)["correct_notes"]
++
++
++def missed_notes(state: HandPianoEnvState, _: HandPianoAction) -> Tensor:
++    """Negative fraction of requested notes not down during this interval."""
++    return key_match_terms(state.key_down, state.target_active)["missed_notes"]
++
++
++def extra_notes(state: HandPianoEnvState, _: HandPianoAction) -> Tensor:
++    """Negative count of unrequested keys, including early presses and late releases."""
++    return key_match_terms(state.key_down, state.target_active)["extra_notes"]
++
++
++def wrong_keys(state: HandPianoEnvState, _: HandPianoAction) -> Tensor:
++    """Flat -1 per env while any unrequested key is down."""
++    return wrong_key_reward(
++        key_match_terms(state.key_down, state.target_active)["extra_keys"]
++    )
++
++
++def note_nearness(
++    state: HandPianoEnvState, _: HandPianoAction, *, scale: float
++) -> Tensor:
++    """How close each requested key is to the fingertip assigned to play it."""
++    return proximity_reward(state.target_key_distances, state.target_active, scale)
++
++
++def key_intensity(
++    state: HandPianoEnvState, _: HandPianoAction, *, scale: float
++) -> Tensor:
++    """How close the hit-time key speed is to the target, on active keys."""
++    return key_intensity_reward(state.target_hit_velocity, state.hit_velocity, scale)
++
++
++def finger_nearness(
++    state: HandPianoEnvState, _: HandPianoAction, *, scale: float
++) -> Tensor:
++    """How close each requested key is to the fingertip the fingering plan assigns."""
++    return proximity_reward(state.planned_key_distances, state.target_active, scale)
++
++
++def action_rate(state: HandPianoEnvState, action: HandPianoAction) -> Tensor:
++    """Negative mean squared change between consecutive actions; discourages jerk."""
++    return -(flat_action(action) - state.previous_action).square().mean(-1)
++
++
++def finger_posture(
++    state: HandPianoEnvState, _: HandPianoAction, *, scale: float
++) -> Tensor:
++    """exp(-(rms/scale)^2) of the joints' deviation from the pianist posture; 1 at rest."""
++    rms = state.posture_error.square().mean(-1).sqrt()
++    return torch.exp(-((rms / scale) ** 2))
++
++
++def hand_orientation(
++    state: HandPianoEnvState, _: HandPianoAction, *, scale: float
++) -> Tensor:
++    """exp(-(angle/scale)^2) of the base's rotation away from level, palm down."""
++    return torch.exp(-((state.orientation_error[..., 0] / scale) ** 2))
++
++
++def _bind(term, **params):
++    """Fixes a term's hyperparameters, keeping its name for weights and logging."""
++    return functools.update_wrapper(functools.partial(term, **params), term)
++
++
++REWARD_TERMS = (
++    "correct_notes",
++    "missed_notes",
++    "extra_notes",
++    "note_nearness",
++    "finger_nearness",
++    "key_intensity",
++    "wrong_keys",
++    "action_rate",
++    "finger_posture",
++    "hand_orientation",
++)
++"""Every reward term's name; each needs a weight in the config."""
++
++
+ class HandPianoEnvConfig(Config):
+     """Configuration for the HandPianoEnv environment."""
+ 
+@@ -116,23 +381,57 @@ class HandPianoEnvConfig(Config):
+     """Fraction of key travel counted as an actual press."""
+     nearness_scale: float = Field(default=0.02, gt=0, allow_inf_nan=False)
+     """Distance scale in meters for 1-tanh(distance/scale)."""
++    fingering_path: str | None = None
++    """Optional fingering plan (from scripts/notes_to_fingers.py) for finger_nearness.
++
++    note_nearness always measures each active key from the closest distinct finger.
++    finger_nearness measures it from the plan's finger, or matches note_nearness if
++    this is None.
++    """
+     reward_weights: dict[str, float] = Field(
+-        default_factory=lambda: {
+-            "correct_notes": 1.0,
+-            "missed_notes": 1.0,
+-            "extra_notes": 1.0,
+-            "note_nearness": 0.0,
+-            "key_intensity": 0.0,
+-            "wrong_keys": 0.0,
+-        }
++        default_factory=lambda: {name: 0.0 for name in REWARD_TERMS}
++        | {"correct_notes": 1.0, "missed_notes": 1.0, "extra_notes": 1.0}
+     )
+-    """Nonnegative weights; nearness requires measured fingertip/key distances."""
++    """Nonnegative weight per reward term; at curriculum progress 0 if one is set."""
++    final_reward_weights: dict[str, float] | None = None
++    """Weights at curriculum progress 1; weights move linearly between the two sets.
++
++    None keeps reward_weights throughout. Progress rises with note recall; see
++    curriculum_start and curriculum_end.
++    """
++    curriculum_start: float = Field(default=0.1, ge=0, le=1)
++    """Average note recall at which curriculum progress starts rising from 0."""
++    curriculum_end: float = Field(default=0.7, ge=0, le=1)
++    """Average note recall at which curriculum progress reaches 1."""
++    curriculum_rate: float = Field(default=0.2, gt=0, le=1)
++    """How far one full batch of finished episodes moves the average note recall.
++
++    Smaller is smoother; a reward that changes quickly destabilizes PPO's value
++    estimates. Progress never decreases.
++    """
++    posture_scale: float = Field(default=0.3, gt=0, allow_inf_nan=False)
++    """RMS joint deviation in radians at which finger_posture falls to 1/e."""
++    orientation_scale: float = Field(default=0.3, gt=0, allow_inf_nan=False)
++    """Base rotation in radians at which hand_orientation falls to 1/e."""
+     target_hit_velocity: float = Field(default=1.0, gt=0, allow_inf_nan=False)
+     """Wanted key speed at the hit, in fractions of key travel per second.
+ 
+     The score has no dynamics yet, so every note uses this one value. Print real
+     hit_velocity values and tune this before turning key_intensity on.
+     """
++    color_correctness: bool = True
++    """Color environment 0's keys in the viewer by correctness, as scored by the rewards.
++
++    Wanted keys are target_color until pressed, then correct_color; unwanted pressed
++    keys are wrong_color. Replaces the piano's color_pressed. Does nothing without a
++    viewer.
++    """
++    target_color: tuple[float, float, float, float] = (0.2, 0.4, 1.0, 0.7)
++    """RGBA color for keys the score wants that are not down (blue)."""
++    correct_color: tuple[float, float, float, float] = (0.2, 0.9, 0.3, 0.7)
++    """RGBA color for wanted keys that are down (green)."""
++    wrong_color: tuple[float, float, float, float] = (1.0, 0.2, 0.2, 0.7)
++    """RGBA color for unwanted keys that are down (red)."""
+     intensity_scale: float = Field(default=0.2, gt=0, allow_inf_nan=False)
+     """Width of the exp(-(err/scale)^2) bump around target_hit_velocity."""
+ 
+@@ -145,23 +444,23 @@ class HandPianoEnvConfig(Config):
+             )
+         return pitches
+ 
+-    @field_validator("reward_weights")
++    @field_validator("reward_weights", "final_reward_weights")
+     @classmethod
+     def validate_weights(cls, weights):
+-        names = {
+-            "correct_notes",
+-            "missed_notes",
+-            "extra_notes",
+-            "note_nearness",
+-            "key_intensity",
+-            "wrong_keys",
+-        }
+-        if set(weights) != names:
+-            raise ValueError(f"Specify all reward weights: {sorted(names)}")
++        if weights is None:
++            return weights
++        if set(weights) != set(REWARD_TERMS):
++            raise ValueError(f"Specify all reward weights: {sorted(REWARD_TERMS)}")
+         if any(not math.isfinite(w) or w < 0 for w in weights.values()):
+             raise ValueError("Reward weights must be finite and nonnegative")
+         return weights
+ 
++    @model_validator(mode="after")
++    def validate_curriculum(self):
++        if self.curriculum_end <= self.curriculum_start:
++            raise ValueError("curriculum_end must be above curriculum_start")
++        return self
++
+ 
+ class HandPianoEnv(VecEnv):
+     """Follow a timed score using physical key activation, with optional nearness."""
+@@ -200,101 +499,144 @@ class HandPianoEnv(VecEnv):
+             )
+         if system.state.pressed.shape != (self.num_envs, len(cfg.key_pitches)):
+             raise ValueError("Pressed-state channels must match configured key_pitches")
+-        if cfg.reward_weights["note_nearness"] > 0:
+-            distances = system.state.get("fingertip_key_distances", None)
+-            if distances is None:
+-                raise ValueError(
+-                    "Enable note_nearness only after the system supplies measured fingertip_key_distances"
+-                )
+-            proximity_reward(
+-                distances, torch.zeros_like(system.state.pressed), cfg.nearness_scale
++        self._fingering = (
++            FingeringPlan(
++                cfg.fingering_path,
++                notes,
++                cfg.key_pitches,
++                cfg.lead_in_seconds,
++                self.device,
+             )
+-        self._reward_target = self._targets()["target_active"]
+-        self._reward = RewardFunction(
++            if cfg.fingering_path is not None
++            else None
++        )
++        self._reward = RewardFunction[HandPianoEnvState, HandPianoAction](
+             [
+-                self.correct_notes,
+-                self.missed_notes,
+-                self.extra_notes,
+-                self.note_nearness,
+-                self.key_intensity,
+-                self.wrong_keys,
++                correct_notes,
++                missed_notes,
++                extra_notes,
++                _bind(note_nearness, scale=cfg.nearness_scale),
++                _bind(finger_nearness, scale=cfg.nearness_scale),
++                _bind(key_intensity, scale=cfg.intensity_scale),
++                wrong_keys,
++                action_rate,
++                _bind(finger_posture, scale=cfg.posture_scale),
++                _bind(hand_orientation, scale=cfg.orientation_scale),
+             ],
+             weights=cfg.reward_weights,
+             batch_size=self.num_envs,
+             device=self.device,
+         )
+-
+-    def _targets(self):
+-        time = self.episode_length_buf.to(torch.float64).unsqueeze(-1) * self._dt
+-        return self._score.sample(time)
+-
+-    def _matches(self, state):
+-        return key_match_terms(
+-            state.pressed, self._reward_target, self.cfg.pressed_threshold
++        self._previous_action = torch.zeros(
++            self.num_envs, self.num_actions, device=self.device
+         )
+-
+-    def correct_notes(self, state, _):
+-        """Fraction of requested notes pressed during this control interval."""
+-        return self._matches(state)["correct_notes"]
+-
+-    def missed_notes(self, state, _):
+-        """Negative fraction of requested notes missing during this interval."""
+-        return self._matches(state)["missed_notes"]
+-
+-    def extra_notes(self, state, _):
+-        """Negative count of unrequested keys, including early presses and late releases."""
+-        return self._matches(state)["extra_notes"]
+-
+-    def note_nearness(self, state, _):
+-        """Optional spatial guidance; never infer distances from the base pose."""
+-        if self.cfg.reward_weights["note_nearness"] == 0:
+-            return torch.zeros(self.num_envs, device=self.device)
+-        return proximity_reward(
+-            state["fingertip_key_distances"],
+-            self._reward_target,
+-            self.cfg.nearness_scale,
++        # Curriculum: per-episode note recall, and its running average across episodes.
++        self._episode_hits = torch.zeros(self.num_envs, device=self.device)
++        self._episode_required = torch.zeros(self.num_envs, device=self.device)
++        self.note_recall = 0.0
++        self.curriculum_progress = 0.0
++
++    def _time(self) -> Tensor:
++        """Each environment's score time in seconds, as (envs, 1)."""
++        return self.episode_length_buf.to(torch.float64).unsqueeze(-1) * self._dt
++
++    def state_at(self, time: Tensor, previous_action: Tensor) -> HandPianoEnvState:
++        """The current system state with the score fields for `time`, as (envs, 1)."""
++        system = self._system.state
++        targets = self._score.sample(time)
++        target = targets["target_active"]
++        key_down = keys_down(system.pressed, self.cfg.pressed_threshold)
++        distances = system.fingertip_key_distances
++        fingers = assign_fingers(distances, target)
++        planned = fingers if self._fingering is None else self._fingering.sample(time)
++        return HandPianoEnvState(
++            **dict(system.items()),
++            **targets,
++            key_down=key_down,
++            note_correctness=key_match_terms(key_down, target)[
++                "note_correctness"
++            ].unsqueeze(-1),
++            target_fingers=fingers,
++            target_key_distances=assigned_distances(distances, fingers),
++            target_hit_velocity=target * self.cfg.target_hit_velocity,
++            planned_fingers=planned,
++            planned_key_distances=assigned_distances(distances, planned),
++            previous_action=previous_action,
++            posture_error=system.joint_positions - self._system.default_joint_positions,
++            orientation_error=orientation_error(
++                system.orientation, self._system.default_orientation
++            ),
++            batch_size=[self.num_envs],
++            device=self.device,
+         )
+ 
+-    def key_intensity(self, state, _):
+-        """How close the hit-time key speed is to the target, on active keys."""
+-        return key_intensity_reward(
+-            self._reward_target * self.cfg.target_hit_velocity,
+-            state["hit_velocity"],
+-            self.cfg.intensity_scale,
+-        )
++    def _update_curriculum(self, finished: Tensor):
++        """Folds finished episodes' note recall into the average, then sets weights."""
++        required = self._episode_required[finished]
++        played = required > 0
++        if played.any():
++            recall = (self._episode_hits[finished][played] / required[played]).mean()
++            share = played.sum().item() / self.num_envs
++            self.note_recall += (
++                self.cfg.curriculum_rate * share * (recall.item() - self.note_recall)
++            )
++        self._episode_hits[finished] = 0
++        self._episode_required[finished] = 0
++        span = self.cfg.curriculum_end - self.cfg.curriculum_start
++        progress = min(max((self.note_recall - self.cfg.curriculum_start) / span, 0), 1)
++        # Never lower the bar: a dip in recall should not loosen the penalties again.
++        self.curriculum_progress = max(self.curriculum_progress, progress)
++        final = self.cfg.final_reward_weights
++        if final is not None:
++            start, p = self.cfg.reward_weights, self.curriculum_progress
++            self._reward.set_weights(
++                {name: start[name] + p * (final[name] - start[name]) for name in start}
++            )
+ 
+-    def wrong_keys(self, state, _):
+-        """Flat -1 per env while any unrequested key is pressed."""
+-        return wrong_key_reward(self._matches(state)["extra_keys"])
++    def _show_correctness(self, state: HandPianoEnvState):
++        """Colors environment 0's keys in the viewer by what the rewards just scored."""
++        show = getattr(self._system, "show_key_colors", None)
++        if not self.cfg.color_correctness or show is None:
++            return
++        show(
++            key_colors(
++                state.key_down[0],
++                state.target_active[0],
++                self.cfg.target_color,
++                self.cfg.correct_color,
++                self.cfg.wrong_color,
++            )
++        )
+ 
+     @override
+-    def get_observations(self) -> TensorDict:
+-        obs = TensorDict(dict(self._system.state.items()), batch_size=self.num_envs)
+-        targets = self._targets()
+-        obs.update(targets)
+-        obs["note_correctness"] = key_match_terms(
+-            self._system.state.pressed,
+-            targets["target_active"],
+-            self.cfg.pressed_threshold,
+-        )["note_correctness"].unsqueeze(-1)
+-        return obs.clone()
++    def get_observations(self) -> HandPianoEnvState:
++        # Clone so later simulator steps cannot mutate a returned observation.
++        return self.state_at(self._time(), self._previous_action).clone()
+ 
+     @override
+     def step(self, actions: Tensor):
+-        from src.sim.hand_piano import HandPianoAction
+-
+-        # Score the result against the interval the policy just acted on.
+-        self._reward_target = self._targets()["target_active"]
+         action = HandPianoAction.from_tensor(actions)
++        # Score the result against the interval the policy just acted on.
++        interval_start = self._time()
+         self._system.step(action)
+-        rewards = self._reward(self._system.state, action) * self._dt
+-        log = self._reward.log()  # Unweighted rates before multiplication by dt.
++        state = self.state_at(interval_start, self._previous_action)
++        rewards = self._reward(state, action) * self._dt
++        self._show_correctness(state)
++        log = self._reward.log()  # Weighted rates, before multiplication by dt.
++        self._previous_action = flat_action(action)
++        wanted, down = state.target_active.bool(), state.key_down.bool()
++        self._episode_hits += (wanted & down).sum(-1)
++        self._episode_required += wanted.sum(-1)
+         self.episode_length_buf += 1
+         time_outs = self.episode_length_buf >= self.max_episode_length
+         reset_idx = time_outs.nonzero().flatten()
+         if len(reset_idx) > 0:
++            self._update_curriculum(reset_idx)
+             self._system.reset(reset_idx)
+             self.episode_length_buf[reset_idx] = 0
++            self._previous_action[reset_idx] = 0
++        log["curriculum/note_recall"] = self.note_recall
++        log["curriculum/progress"] = self.curriculum_progress
+         # Completing this finite score is a terminal task, not a truncated
+         # continuing episode. Do not bootstrap a value from the next score.
+         return (
+@@ -304,7 +646,6 @@ class HandPianoEnv(VecEnv):
+             {"time_outs": torch.zeros_like(time_outs), "log": log},
+         )
+ 
+-    
+ 
+ def key_metrics(active, goal, threshold=0.5):
+     # Convert values into True/False predictions
+diff --git a/src/reward/reward.py b/src/reward/reward.py
+index 4eed4e1..f4b6e97 100644
+--- a/src/reward/reward.py
++++ b/src/reward/reward.py
+@@ -43,6 +43,12 @@ class RewardFunction[S: _State, A: _Action]:
+ 
+         self._buf = torch.zeros((batch_size, len(terms)), device=device)
+ 
++    def set_weights(self, weights: dict[str, float]) -> None:
++        """Replaces the weights of the named terms, e.g. for a curriculum."""
++        for i, term in enumerate(self._terms):
++            if term.__name__ in weights:
++                self._weights[i] = weights[term.__name__]
++
+     def log(self) -> dict[str, float]:
+         """Returns the mean reward for each term.
+ 
+diff --git a/src/sim/hand_piano.py b/src/sim/hand_piano.py
+index 07663f9..5c6b019 100644
+--- a/src/sim/hand_piano.py
++++ b/src/sim/hand_piano.py
+@@ -3,16 +3,18 @@
+ A floating RUKA hand is driven by PD position targets above a piano.
+ """
+ 
+-from typing import TYPE_CHECKING, Literal, NotRequired, override
++from typing import TYPE_CHECKING, Literal, override
+ 
+ import genesis as gs
++import genesis.utils.geom as gu
+ import torch
+ from jaxtyping import Float
++from pydantic import Field
+ from rsl_rl.utils import resolve_callable
+ from tensordict import TypedTensorDict
+ 
+-from src.config import Config
+-from src.sim.piano import PianoConfig, PianoState
++from src.base_config import Config
++from src.sim.piano import Piano, PianoConfig, PianoState
+ 
+ from .vec_system import GenesisConfig, GenesisSystem, VecAction, VecSystem
+ 
+@@ -22,6 +24,41 @@ if TYPE_CHECKING:
+ NUM_BASE_DOFS = 6
+ """The free joint of the hand base: 3 translational DOFs, then 3 rotational DOFs."""
+ 
++FINGERTIP_LINKS = (
++    "thumb___joint_3",
++    "finger___joint_3",
++    "finger___joint_3_2",
++    "finger___joint_3_3",
++    "pinky___joint_3",
++)
++"""The distal link of each finger, thumb to pinky (finger numbers 1 to 5)."""
++
++PIANIST_POSTURE: dict[str, float] = {
++    # Fingers curved at every joint. Signs differ per joint because the URDF's joint
++    # axes do; each value bends its finger toward the palm.
++    "index_mcp": -0.6,
++    "index_pip": 0.7,
++    "index_dip": -0.35,
++    "mid_mcp": 0.6,
++    "mid_pip": -0.7,
++    "mid_dip": 0.35,
++    "ring_mcp": 0.6,
++    "ring_pip": 0.7,
++    "ring_dip": 0.35,
++    "pinky_mcp": 0.55,
++    "pinky_pip": 0.6,
++    "pinky_dip": 0.35,
++    # Thumb tucked in next to the index finger, its tip level with the others.
++    "thumb_cmc": -0.45,
++    "thumb_mcp": 0.15,
++    "thumb_ip": 0.3,
++}
++"""Joint angles (radians) for a pianist's hand: curved fingers with level fingertips.
++
++With the default base pose, the five fingertips sit in a row 4-5 cm high (about 2 cm
++above the white keys), over the front of the keys, about 2 cm apart.
++"""
++
+ 
+ class HandPianoState(PianoState, TypedTensorDict):
+     """The state of the hand, along with the state of the piano keys."""
+@@ -30,10 +67,19 @@ class HandPianoState(PianoState, TypedTensorDict):
+     orientation: Float[torch.Tensor, "*batch 4"]
+     velocity: Float[torch.Tensor, "*batch 3"]
+     joint_positions: Float[torch.Tensor, "*batch 21"]
+-    # fingertip_key_distances: Float[torch.Tensor, "*batch 88"]
+-    """Optional measured fingertip-to-press-point distances in meters, in pressed-channel order.
++    target_offsets: Float[torch.Tensor, "*batch 27"]
++    """The smoothed, normalized offsets from the default pose that the PD targets use.
++
++    Base DOFs first, then joints. With action_smoothing below 1 these lag the actions,
++    so they are part of the state the policy needs.
++    """
++    fingertip_positions: Float[torch.Tensor, "*batch 5 3"]
++    """World-frame fingertip positions in meters, thumb to pinky."""
++    fingertip_key_distances: Float[torch.Tensor, "*batch 5 88"]
++    """Distance in meters from each fingertip (thumb to pinky) to each key's press point.
+ 
+-    Not populated until fingertip assignments and piano contact geometry are verified.
++    Keys are in pressed-channel order. Which finger should play which key is decided
++    by the environment, which knows the score.
+     """
+ 
+ 
+@@ -44,7 +90,11 @@ class HandPianoAction(VecAction):
+     """Normalized offsets from the hand's default pose, used as PD position targets."""
+ 
+     base_pose: Float[torch.Tensor, "*batch 6"]
+-    """Offsets for the base position (x, y, z) and rotation (roll, pitch, yaw)."""
++    """Offsets for the base position (x, y, z), then a rotation vector for the base.
++
++    The rotation vector is expressed in the hand's default (initial) frame, so each
++    component turns the hand about one of its own axes from the default orientation.
++    """
+ 
+     joint_positions: Float[torch.Tensor, "*batch 21"]
+     """Offsets for the wrist and finger joints."""
+@@ -66,14 +116,60 @@ class HandPianoConfig(GenesisConfig):
+     num_envs: int = 1
+     """The number of environments to simulate."""
+ 
+-    workspace: float = 2.0
+-    """Base position targets are clamped to [-workspace, workspace] on each axis."""
++    workspace_lower: tuple[float, float, float] = (0.12, -0.7, 0.0)
++    """Lower bounds in meters for the base position targets, per axis."""
+ 
+-    initial_position: tuple[float, float, float] = (0.0, 0.0, 1.0)
+-    """The initial position of the hand base."""
++    workspace_upper: tuple[float, float, float] = (0.35, 0.7, 0.3)
++    """Upper bounds in meters for the base position targets, per axis.
++
++    The default box covers the whole keyboard (y from -0.61 to 0.61) and lets the
++    fingertips reach from behind the black keys to just in front of the keys, from
++    pressing height to about 20 cm above them.
++    """
++
++    initial_position: tuple[float, float, float] = (0.22, -0.015, 0.09)
++    """The initial position of the hand base in meters.
++
++    The piano's keys run along y (bass at -y) with the player on the +x side and key
++    tops about 2-3.5 cm above z = 0. The default puts the fingertips over the front of
++    the keys, about 2 cm above the white keys in the default posture, with the thumb to
++    pinky centered on C4 to G4.
++    """
++
++    initial_orientation: tuple[float, float, float] = (90.0, 0.0, -90.0)
++    """The initial orientation of the hand base as extrinsic x-y-z Euler angles in degrees.
++
++    The default points the fingers away from the player (-x), with the palm facing
++    down onto the keys and the thumb toward the bass (-y), as for a right hand.
++    """
++
++    initial_joint_positions: dict[str, float] = Field(
++        default_factory=lambda: dict(PIANIST_POSTURE)
++    )
++    """Joint angles in radians, by joint name, for the default pose; others are 0.
++
++    The hand starts and resets here, and zero actions hold it here.
++    """
+ 
+     action_scale: float = 0.5
+-    """Scale applied to actions before adding them to the default pose."""
++    """Scale applied to joint actions before adding them to the default pose.
++
++    Actions are clipped to [-1, 1] first, so each target is within this distance (in
++    radians) of the default pose.
++    """
++
++    base_action_scale: tuple[float, float] | None = None
++    """Scales for the base actions: (translation in meters, rotation in radians).
++
++    None uses action_scale for both.
++    """
++
++    action_smoothing: float = Field(default=1.0, gt=0.0, le=1.0)
++    """Weight of each new action in a moving average of actions; 1 disables smoothing.
++
++    0.25 at 60 Hz settles about 63% of the way to a new action in about 4 steps
++    (65 ms), so targets cannot jump from one step to the next.
++    """
+ 
+     base_kp: tuple[float, float] = (500.0, 50.0)
+     """PD position gains for the base (translation, rotation)."""
+@@ -81,6 +177,13 @@ class HandPianoConfig(GenesisConfig):
+     base_kv: tuple[float, float] = (50.0, 5.0)
+     """PD velocity gains for the base (translation, rotation)."""
+ 
++    base_force_limit: tuple[float, float] | None = None
++    """Caps on the base's PD force in newtons and torque in newton-meters, or None.
++
++    The stiff base PD can otherwise drive the hand through the keys; a key needs only
++    about 1 N to press. With 4 substeps, 10 N kept a hard push's penetration to 2 mm.
++    """
++
+     piano: PianoConfig
+     """The configuration for the piano simulation."""
+ 
+@@ -100,12 +203,12 @@ class HandPiano(GenesisSystem[HandPianoState, HandPianoAction, HandPianoConfig])
+             gs.morphs.URDF(
+                 file="robots/ruka_description/urdf/robot.urdf",
+                 pos=cfg.initial_position,
+-                quat=(0, 0, 0, 1),
++                euler=cfg.initial_orientation,
+             ),
+             material=gs.materials.Rigid(gravity_compensation=1.0),
+         )
+ 
+-        self._piano: PianoSystem = resolve_callable(cfg.piano.class_name)(
++        self._piano: Piano = resolve_callable(cfg.piano.class_name)(
+             cfg.piano, self
+         )
+ 
+@@ -118,13 +221,37 @@ class HandPiano(GenesisSystem[HandPianoState, HandPianoAction, HandPianoConfig])
+         self._hand.set_dofs_kv(
+             torch.tensor([cfg.base_kv[0]] * 3 + [cfg.base_kv[1]] * 3), base_dofs
+         )
++        if cfg.base_force_limit is not None:
++            limit = torch.tensor(
++                [cfg.base_force_limit[0]] * 3 + [cfg.base_force_limit[1]] * 3
++            )
++            self._hand.set_dofs_force_range(-limit, limit, base_dofs)
++
++        self._fingertip_links: list[int] = [
++            self._hand.get_link(name).idx_local for name in FINGERTIP_LINKS
++        ]
++        self._fingertip_offsets: torch.Tensor = self._measure_fingertip_offsets()
++        self._press_points: torch.Tensor = self._piano.press_points()
+ 
+         self._default_dofs: torch.Tensor = self._hand.get_dofs_position()[0].clone()
++        for name, angle in cfg.initial_joint_positions.items():
++            self._default_dofs[self._hand.get_joint(name).dofs_idx_local[0]] = angle
++        translation, rotation = cfg.base_action_scale or (cfg.action_scale,) * 2
++        self._action_scales: torch.Tensor = torch.tensor(
++            [translation] * 3
++            + [rotation] * 3
++            + [cfg.action_scale] * (self._hand.n_dofs - NUM_BASE_DOFS),
++            device=gs.device,
++        )
++        # Euler offsets are degenerate in the default pose (Genesis's free-joint Euler
++        # angles are in gimbal lock when the fingers point along -x), so base rotations
++        # are composed as quaternions and converted back to Euler targets.
++        self._default_quat: torch.Tensor = self._hand.get_quat()[0].clone()
+         lower, upper = self._hand.get_dofs_limit()
+         self._dofs_lower: torch.Tensor = lower.clone()
+         self._dofs_upper: torch.Tensor = upper.clone()
+-        self._dofs_lower[:3] = -cfg.workspace
+-        self._dofs_upper[:3] = cfg.workspace
++        self._dofs_lower[:3] = torch.tensor(cfg.workspace_lower, device=gs.device)
++        self._dofs_upper[:3] = torch.tensor(cfg.workspace_upper, device=gs.device)
+ 
+         self._state: HandPianoState = HandPianoState(
+             position=torch.zeros((self._num_envs, 3), device=gs.device),
+@@ -133,7 +260,13 @@ class HandPiano(GenesisSystem[HandPianoState, HandPianoAction, HandPianoConfig])
+             joint_positions=torch.zeros(
+                 (self._num_envs, self.num_actions - NUM_BASE_DOFS), device=gs.device
+             ),
+-            # fingertip_key_distances=None,
++            target_offsets=torch.zeros(
++                (self._num_envs, self.num_actions), device=gs.device
++            ),
++            fingertip_positions=torch.zeros((self._num_envs, 5, 3), device=gs.device),
++            fingertip_key_distances=torch.zeros(
++                (self._num_envs, 5, 88), device=gs.device
++            ),
+             pressed=torch.zeros((self._num_envs, 88), device=gs.device),
+             hit_velocity=torch.zeros((self._num_envs, 88), device=gs.device),
+             batch_size=self._num_envs,
+@@ -159,12 +292,31 @@ class HandPiano(GenesisSystem[HandPianoState, HandPianoAction, HandPianoConfig])
+         """The current state of the system."""
+         return self._state
+ 
++    @property
++    def default_joint_positions(self) -> Float[torch.Tensor, "21"]:
++        """The wrist and finger angles of the default pose (the pianist posture)."""
++        return self._default_dofs[NUM_BASE_DOFS:]
++
++    @property
++    def default_orientation(self) -> Float[torch.Tensor, "4"]:
++        """The (w, x, y, z) quaternion of the default base orientation."""
++        return self._default_quat
++
+     @override
+     def step(self, action: HandPianoAction):
+         """Steps the simulation forward by one timestep."""
+         action = HandPianoAction.from_(action)
+-        offsets = torch.cat([action.base_pose, action.joint_positions], dim=-1)
+-        targets = self._default_dofs + self.cfg.action_scale * offsets
++        # Policies sample from an unbounded Gaussian, so clip to the normalized range.
++        actions = torch.cat([action.base_pose, action.joint_positions], dim=-1)
++        smoothed = self._state.target_offsets
++        _ = smoothed.lerp_(actions.clamp(-1.0, 1.0), self.cfg.action_smoothing)
++        offsets = self._action_scales * smoothed
++        targets = self._default_dofs + offsets
++        rotation = gu.transform_quat_by_quat(
++            _rotvec_to_quat(offsets[..., 3:NUM_BASE_DOFS]),
++            self._default_quat.expand(*offsets.shape[:-1], 4),
++        )
++        targets[..., 3:NUM_BASE_DOFS] = gu.quat_to_xyz(rotation)
+         self._hand.control_dofs_position(
+             targets.clamp(self._dofs_lower, self._dofs_upper)
+         )
+@@ -176,9 +328,20 @@ class HandPiano(GenesisSystem[HandPianoState, HandPianoAction, HandPianoConfig])
+     def reset(self, idx: int | torch.Tensor | None = None):
+         """Resets the simulation to the initial state."""
+         self._scene.reset(envs_idx=idx)
++        # The scene resets to the built (straight-fingered) pose; move to the default.
++        envs = torch.arange(self._num_envs, device=gs.device) if idx is None else idx
++        envs = torch.as_tensor(envs, device=gs.device).reshape(-1)
++        self._hand.set_dofs_position(
++            self._default_dofs.expand(len(envs), -1), envs_idx=envs, zero_velocity=True
++        )
++        self._state.target_offsets[envs] = 0
+         self._piano.reset(idx)
+         self._update_state()
+ 
++    def show_key_colors(self, colors: Float[torch.Tensor, "88 4"]):
++        """Colors environment 0's piano keys in the viewer; see Piano.show_key_colors."""
++        self._piano.show_key_colors(colors)
++
+     def _update_state(self):
+         _ = self._state.position.copy_(torch.as_tensor(self._hand.get_pos()))
+         _ = self._state.orientation.copy_(self._hand.get_quat())
+@@ -186,5 +349,40 @@ class HandPiano(GenesisSystem[HandPianoState, HandPianoAction, HandPianoConfig])
+         _ = self._state.joint_positions.copy_(
+             torch.as_tensor(self._hand.get_dofs_position())[:, NUM_BASE_DOFS:]
+         )
++        tips = self._fingertip_positions()
++        _ = self._state.fingertip_positions.copy_(tips)
++        _ = self._state.fingertip_key_distances.copy_(
++            torch.cdist(tips, self._press_points.expand(tips.shape[0], -1, -1))
++        )
+         _ = self._state.pressed.copy_(self._piano.state.pressed)
+         _ = self._state.hit_velocity.copy_(self._piano.state.hit_velocity)
++
++    def _measure_fingertip_offsets(self) -> Float[torch.Tensor, "5 3"]:
++        """Finds the tip of each distal link, in that link's frame.
++
++        The tip is the collision vertex farthest from the link origin, which sits at the
++        finger's last joint. Measured once, from environment 0.
++        """
++        pos = self._hand.get_links_pos(self._fingertip_links).reshape(-1, 5, 3)[0]
++        quat = self._hand.get_links_quat(self._fingertip_links).reshape(-1, 5, 4)[0]
++        offsets = []
++        for i, link in enumerate(self._fingertip_links):
++            verts = self._hand.links[link].get_verts().reshape(-1, self._hand.links[link].n_verts, 3)[0]
++            local = gu.transform_by_quat(verts - pos[i], gu.inv_quat(quat[i]).expand(len(verts), 4))
++            offsets.append(local[local.norm(dim=-1).argmax()])
++        return torch.stack(offsets)
++
++    def _fingertip_positions(self) -> Float[torch.Tensor, "envs 5 3"]:
++        """World-frame fingertip positions in every environment."""
++        pos = self._hand.get_links_pos(self._fingertip_links).reshape(-1, 5, 3)
++        quat = self._hand.get_links_quat(self._fingertip_links).reshape(-1, 5, 4)
++        return pos + gu.transform_by_quat(self._fingertip_offsets.expand_as(pos), quat)
++
++
++def _rotvec_to_quat(rotvec: Float[torch.Tensor, "*batch 3"]) -> Float[torch.Tensor, "*batch 4"]:
++    """Converts rotation vectors to (w, x, y, z) quaternions, including zero rotations."""
++    angle = rotvec.norm(dim=-1, keepdim=True)
++    half = 0.5 * angle
++    # sin(half) / angle tends to 1/2 as the angle goes to zero.
++    scale = torch.where(angle > 1e-8, half.sin() / angle.clamp_min(1e-8), 0.5)
++    return torch.cat([half.cos(), scale * rotvec], dim=-1)
+diff --git a/src/sim/piano.py b/src/sim/piano.py
+index 159bcd5..9bb0625 100644
+--- a/src/sim/piano.py
++++ b/src/sim/piano.py
+@@ -6,10 +6,12 @@ import torch
+ from genesis.engine.entities.rigid_entity import RigidLink
+ from jaxtyping import Float
+ from pydantic import Field
++from robopianist import SF2_PATH
+ from robopianist.models.piano import piano_mjcf
+ from tensordict import TypedTensorDict
+ 
+ from src.base_config import Config
++from src.sim.piano_audio import PianoAudio, RealTimePacer
+ from src.sim.vec_system import ChildSystem, GenesisConfig, GenesisSystem
+ 
+ if TYPE_CHECKING:
+@@ -35,7 +37,11 @@ class PianoConfig(Config):
+     class_name: Literal["src.sim.piano:Piano"]
+ 
+     color_pressed: bool = False
+-    """Highlight pressed keys in the viewer by drawing a colored box over them (environment 0 only)."""
++    """Highlight pressed keys in the viewer by drawing a colored box over them (environment 0 only).
++
++    Ignored once something else colors the keys through show_key_colors, such as the
++    HandPianoEnv's correctness colors.
++    """
+ 
+     pressed_color: tuple[float, float, float, float] = (1.0, 0.2, 0.2, 0.7)
+     """The RGBA color used to highlight pressed keys."""
+@@ -43,6 +49,46 @@ class PianoConfig(Config):
+     pressed_threshold: float = Field(default=0.5, ge=0.0, le=1.0)
+     """The fraction of a key's travel at which it is highlighted as pressed."""
+ 
++    audio: bool = False
++    """Play key presses out loud through the default sound output (one environment).
++
++    Needs FluidSynth and a working audio device. Meant for evaluation and viewing, not
++    training: see audio_realtime.
++    """
++
++    audio_env: int = Field(default=0, ge=0)
++    """The environment whose key presses are played."""
++
++    audio_realtime: bool = True
++    """While audio is on, slow the simulation to real time so notes keep their rhythm."""
++
++    soundfont_path: str = str(SF2_PATH)
++    """The SoundFont (.sf2) used for the piano sound; defaults to robopianist's."""
++
++    audio_driver: str | None = None
++    """FluidSynth audio driver, e.g. "pulseaudio", "pipewire", or "alsa"; None picks one."""
++
++    audio_gain: float = Field(default=0.5, gt=0.0, le=10.0)
++    """FluidSynth output gain."""
++
++    full_velocity_speed: float = Field(default=20.0, gt=0.0)
++    """Key speed (fractions of travel per second) that plays at full MIDI velocity, 127.
++
++    20 means a key that goes all the way down in 50 ms. This is a starting guess, not a
++    calibrated value; slower hits are proportionally quieter, down to min_velocity.
++    """
++
++    min_velocity: int = Field(default=30, ge=1, le=127)
++    """The quietest MIDI velocity played, so slow presses stay audible."""
++
++    press_point_inset: float = Field(default=0.02, ge=0.0)
++    """Distance in meters from a key's front edge to its press point.
++
++    Press points sit on the top surface of each key, centered across its width. Black
++    keys end 6 cm short of the white keys' front edge, so their press points are
++    farther back by that much.
++    """
++
+ 
+ class Piano(ChildSystem[PianoState, None, PianoConfig]):
+     def __init__(
+@@ -69,6 +115,38 @@ class Piano(ChildSystem[PianoState, None, PianoConfig]):
+         )
+         self._key_travel: torch.Tensor | None = None
+         self._highlights: list[object] = []
++        self._drawn_colors: torch.Tensor | None = None
++        self._colored_externally: bool = False
++
++        self._audio: PianoAudio | None = None
++        self._pacer: RealTimePacer | None = None
++        if cfg.audio:
++            if cfg.audio_env >= self._num_envs:
++                raise ValueError(
++                    f"audio_env {cfg.audio_env} is out of range for {self._num_envs} environments"
++                )
++            self._audio = PianoAudio(
++                cfg.soundfont_path,
++                cfg.audio_driver,
++                cfg.audio_gain,
++                cfg.full_velocity_speed,
++                cfg.min_velocity,
++            )
++            if cfg.audio_realtime:
++                self._pacer = RealTimePacer(float(parent.cfg.genesis.sim_options.dt))
++
++    def press_points(self) -> Float[torch.Tensor, "88 3"]:
++        """World-frame point on each key, in key (pressed-channel) order, that a finger should strike.
++
++        The piano is fixed and identical in every environment, so the points are
++        measured once from environment 0 at rest. Requires a built scene.
++        """
++        # Keys run along y with the player on the +x side; tops face +z.
++        aabbs = torch.stack([key.get_AABB().reshape(-1, 2, 3)[0] for key in self._keys])
++        lower, upper = aabbs[:, 0], aabbs[:, 1]
++        center = (lower + upper) / 2
++        x = (upper[:, 0] - self.cfg.press_point_inset).clamp_min(center[:, 0])
++        return torch.stack([x, center[:, 1], upper[:, 2]], dim=-1)
+ 
+     @property
+     @override
+@@ -97,29 +175,55 @@ class Piano(ChildSystem[PianoState, None, PianoConfig]):
+         _ = self._state.hit_velocity.copy_(
+             torch.where(hit, speed, self._state.hit_velocity)
+         )
+-        if self.cfg.color_pressed and self._scene.viewer is not None:
+-            self._highlight_pressed()
+-
+-    def _highlight_pressed(self):
+-        """Redraws a box over each key that is pressed in environment 0."""
++        if self._audio is not None:
++            env = self.cfg.audio_env
++            self._audio.update(hit[env], (was_down & ~is_down)[env], speed[env])
++        if self._pacer is not None:
++            self._pacer.wait()
++        if (
++            self.cfg.color_pressed
++            and not self._colored_externally
++            and self._scene.viewer is not None
++        ):
++            pressed = self._state.pressed[0] >= self.cfg.pressed_threshold
++            color = torch.tensor(self.cfg.pressed_color, device=gs.device)
++            self._draw_key_colors(pressed.unsqueeze(-1) * color)
++
++    def show_key_colors(self, colors: Float[torch.Tensor, "88 4"]):
++        """Colors environment 0's keys in the viewer with RGBA colors, in key order.
++
++        Keys with zero alpha are left uncolored. Calling this turns off color_pressed.
++        Does nothing without a viewer.
++        """
++        self._colored_externally = True
++        if self._scene.viewer is not None:
++            self._draw_key_colors(colors)
++
++    def _draw_key_colors(self, colors: Float[torch.Tensor, "88 4"]):
++        """Redraws a colored box over each key with nonzero alpha in environment 0."""
++        if self._drawn_colors is not None and torch.equal(colors, self._drawn_colors):
++            return  # Nothing changed; skip redrawing debug geometry.
++        self._drawn_colors = colors.clone()
+         # Genesis can't recolor a built mesh per key, so draw debug geometry instead.
+         for highlight in self._highlights:
+             self._scene.clear_debug_object(highlight)
+-        pressed = self._state.pressed[0] >= self.cfg.pressed_threshold
+         # Slightly enlarge each box so it covers the key's surface instead of z-fighting.
+         margin = torch.tensor([[-1e-3], [1e-3]], device=gs.device)
+         self._highlights = [
+             self._scene.draw_debug_box(
+                 self._keys[i].get_AABB()[0] + margin,
+-                color=self.cfg.pressed_color,
++                color=tuple(colors[i].tolist()),
+                 wireframe=False,
+             )
+-            for i in pressed.nonzero().flatten().tolist()
++            for i in (colors[:, 3] > 0).nonzero().flatten().tolist()
+         ]
+ 
+     @override
+     def reset(self, idx: int | torch.Tensor | None = None) -> None:
+         # The parent owns and resets the shared scene; only refresh our state here.
++        if self._audio is not None and _includes(idx, self.cfg.audio_env):
++            # Keys reset up without crossing the threshold, so stop their notes here.
++            self._audio.silence()
+         if idx is None:
+             _ = self._state.pressed.zero_()
+             _ = self._state.hit_velocity.zero_()
+@@ -127,3 +231,10 @@ class Piano(ChildSystem[PianoState, None, PianoConfig]):
+             self._state.pressed[idx] = 0
+             self._state.hit_velocity[idx] = 0
+         self.step(None)
++
++
++def _includes(idx: int | torch.Tensor | None, env: int) -> bool:
++    """Whether a reset of `idx` (None for all) includes environment `env`."""
++    if idx is None:
++        return True
++    return bool((torch.as_tensor(idx) == env).any())
+diff --git a/tests/test_hand_piano_rewards.py b/tests/test_hand_piano_rewards.py
+new file mode 100644
+index 0000000..49e3e86
+--- /dev/null
++++ b/tests/test_hand_piano_rewards.py
+@@ -0,0 +1,344 @@
++"""Synthetic reward and task tests; no Genesis scene or robot assets required."""
++
++import json
++import math
++import tempfile
++import unittest
++from pathlib import Path
++from types import SimpleNamespace
++
++import torch
++
++from src.env.hand_piano import (
++    REWARD_TERMS,
++    FingeringPlan,
++    HandPianoEnv,
++    HandPianoEnvConfig,
++    action_rate,
++    assign_fingers,
++    assigned_distances,
++    finger_nearness,
++    finger_posture,
++    hand_orientation,
++    key_colors,
++    key_match_terms,
++    note_nearness,
++    proximity_reward,
++)
++from src.sim.hand_piano import HandPianoAction, HandPianoState
++
++ALL_WEIGHTS = {name: 0 for name in REWARD_TERMS} | {
++    "correct_notes": 1,
++    "missed_notes": 1,
++    "extra_notes": 1,
++}
++
++
++class FakeSystem:
++    """Stands in for HandPiano: keys go down as the test says, ignoring actions."""
++
++    def __init__(self, dt=0.25, distances=None):
++        self.num_envs, self.num_actions = 2, 27
++        self.cfg = SimpleNamespace(
++            genesis=SimpleNamespace(sim_options=SimpleNamespace(dt=dt))
++        )
++        if distances is None:
++            distances = torch.ones(2, 5, 88)
++        self.state = HandPianoState(
++            position=torch.zeros(2, 3),
++            orientation=torch.zeros(2, 4),
++            velocity=torch.zeros(2, 3),
++            joint_positions=torch.zeros(2, 21),
++            target_offsets=torch.zeros(2, 27),
++            fingertip_positions=torch.zeros(2, 5, 3),
++            fingertip_key_distances=distances,
++            pressed=torch.zeros(2, 88),
++            hit_velocity=torch.zeros(2, 88),
++            batch_size=[2],
++        )
++        self.state["orientation"][:, 0] = 1  # Identity quaternion.
++        self.default_joint_positions = torch.zeros(21)
++        self.default_orientation = torch.tensor([1.0, 0, 0, 0])
++        self.next_pressed = torch.zeros(2, 88)
++        self.reset_indices = []
++        self.shown_colors = []
++
++    def show_key_colors(self, colors):
++        self.shown_colors.append(colors)
++
++    def step(self, action):
++        self.state["pressed"].copy_(self.next_pressed)
++
++    def reset(self, idx):
++        self.reset_indices.append(idx.tolist())
++        self.state["pressed"][idx] = 0
++
++
++def step(env, system, pressed):
++    """Steps env with a zero action after which exactly `pressed` keys are down."""
++    system.next_pressed = pressed
++    return env.step(torch.zeros(env.num_envs, env.num_actions))
++
++
++class RewardTests(unittest.TestCase):
++    def test_correct_missing_extra_and_chords(self):
++        target = torch.tensor([[1.0, 0, 0], [1.0, 1, 0], [1.0, 0, 0], [0.0, 0, 0]])
++        actual = torch.tensor([[1.0, 0, 0], [1.0, 0, 0], [1.0, 1, 0], [0.0, 0, 0]])
++        terms = key_match_terms(actual, target)
++        self.assertEqual(terms["correct_notes"].tolist(), [1, 0.5, 1, 0])
++        self.assertEqual(terms["missed_notes"].tolist(), [0, -0.5, 0, 0])
++        self.assertEqual(terms["extra_notes"].tolist(), [0, 0, -1, 0])
++        self.assertEqual(terms["note_correctness"].tolist(), [1, 0.5, 0.5, 1])
++
++    def test_proximity_is_bounded_monotonic_and_silent_on_rests(self):
++        target = torch.tensor([[1.0], [1.0], [1.0], [0.0]])
++        result = proximity_reward(
++            torch.tensor([[0.0], [0.02], [0.1], [0.0]]), target, 0.02
++        )
++        self.assertEqual(result[0].item(), 1)
++        self.assertGreater(result[0], result[1])
++        self.assertGreater(result[1], result[2])
++        self.assertEqual(result[3].item(), 0)
++        for distances in [torch.tensor([[-1.0]]), torch.tensor([[float("nan")]])]:
++            with self.assertRaises(ValueError):
++                proximity_reward(distances, torch.ones(1, 1), 0.02)
++
++    def test_correct_press_beats_hovering_and_pressing_every_key(self):
++        target = torch.zeros(1, 88)
++        target[0, 39] = 1
++        values = []
++        for actual in [target, torch.zeros_like(target), torch.ones_like(target)]:
++            terms = key_match_terms(actual, target)
++            values.append(
++                sum(
++                    terms[k] for k in ["correct_notes", "missed_notes", "extra_notes"]
++                ).item()
++            )
++        self.assertEqual(values, [1, -1, -86])
++        self.assertGreater(
++            values[0], values[1] + 0.2
++        )  # Maximum illustrative nearness bonus.
++
++    def test_bad_config_is_rejected(self):
++        for kwargs in [
++            {"nearness_scale": 0},
++            {"max_episode_length": 0},
++            {"reward_weights": {"target_distance": 1}},
++            {"key_pitches": [60] * 88},
++        ]:
++            with self.subTest(kwargs=kwargs), self.assertRaises(ValueError):
++                HandPianoEnvConfig(
++                    class_name="src.env.hand_piano:HandPianoEnv", **kwargs
++                )
++
++
++class KeyColorTests(unittest.TestCase):
++    def test_wanted_keys_are_blue_then_green_and_unwanted_presses_are_red(self):
++        blue, green, red = (0, 0, 1, 1.0), (0, 1, 0, 1.0), (1, 0, 0, 1.0)
++        down = torch.tensor([0.0, 1, 1, 0])
++        wanted = torch.tensor([1.0, 1, 0, 0])
++        colors = key_colors(down, wanted, blue, green, red)
++        self.assertEqual(colors.tolist(), [list(blue), list(green), list(red), [0, 0, 0, 0]])
++
++
++class FingerAssignmentTests(unittest.TestCase):
++    def test_chord_gets_distinct_fingers_with_least_total_distance(self):
++        # Finger 0 is nearest both keys, but giving key 1 to finger 1 costs less overall.
++        distances = torch.full((1, 5, 3), 1.0)
++        distances[0, 0, :2] = torch.tensor([0.1, 0.2])
++        distances[0, 1, :2] = torch.tensor([0.9, 0.3])
++        fingers = assign_fingers(distances, torch.tensor([[1.0, 1, 0]]))
++        self.assertEqual(fingers.tolist(), [[0, 1, -1]])
++        torch.testing.assert_close(
++            assigned_distances(distances, fingers), torch.tensor([[0.1, 0.3, 1.0]])
++        )
++
++    def test_rests_and_extra_keys_are_unassigned(self):
++        distances = torch.rand(2, 5, 8)
++        active = torch.tensor([[0.0] * 8, [1.0] * 6 + [0.0] * 2])
++        fingers = assign_fingers(distances, active)
++        self.assertTrue((fingers[0] == -1).all())
++        assigned = fingers[1][fingers[1] >= 0]
++        self.assertEqual(len(assigned), 5)
++        self.assertEqual(len(set(assigned.tolist())), 5)
++        self.assertTrue((fingers[1, 6:] == -1).all())
++        # Unassigned keys still report a measured distance: the nearest finger.
++        nearest = assigned_distances(distances, fingers)
++        self.assertTrue(torch.equal(nearest[0], distances[0].min(0).values))
++
++    def test_plan_fingers_follow_score_timing(self):
++        with tempfile.TemporaryDirectory() as directory:
++            path = Path(directory) / "plan.json"
++            path.write_text(json.dumps({"notes": [
++                {"start": 0, "duration": 1, "pitch": 60, "finger": 1},
++                {"start": 0, "duration": 1, "pitch": 64, "finger": 3},
++            ]}))
++            plan = FingeringPlan(
++                path, [[0, 1, 60], [0, 1, 64]], list(range(21, 109)), 0.5, "cpu"
++            )
++            fingers = plan.sample(torch.tensor([[0.25], [0.75], [1.5]], dtype=torch.float64))
++            self.assertEqual(fingers[:, [39, 43]].tolist(), [[-1, -1], [0, 2], [-1, -1]])
++            self.assertEqual((fingers >= 0).sum().item(), 2)
++            with self.assertRaisesRegex(ValueError, "score's notes"):
++                FingeringPlan(path, [[0, 1, 60]], list(range(21, 109)), 0, "cpu")
++
++
++class TaskTests(unittest.TestCase):
++    def setUp(self):
++        self.directory = tempfile.TemporaryDirectory()
++        self.addCleanup(self.directory.cleanup)
++        self.path = Path(self.directory.name) / "notes.json"
++        self.path.write_text(json.dumps([[0, 0.5, 60]]))
++
++    def make_env(self, dt=0.25, distances=None, **overrides):
++        system = FakeSystem(dt, distances)
++        cfg = HandPianoEnvConfig(
++            class_name="src.env.hand_piano:HandPianoEnv",
++            notes_path=str(self.path),
++            lead_in_seconds=0,
++            release_tail_seconds=0.5,
++            **overrides,
++        )
++        return HandPianoEnv(system, cfg), system
++
++    def test_hold_release_and_terminal_reset(self):
++        env, system = self.make_env()
++        press = torch.zeros(2, 88)
++        press[:, 39] = 1
++        first = env.get_observations()
++        self.assertEqual(first["target_active"][:, 39].tolist(), [1, 1])
++        for _ in range(2):
++            obs, reward, done, _ = step(env, system, press)
++            self.assertEqual(reward.tolist(), [0.25, 0.25])
++            self.assertFalse(done.any())
++        self.assertEqual(obs["target_active"][:, 39].tolist(), [0, 0])
++        _, reward, _, _ = step(env, system, press)  # Late release is an extra press.
++        self.assertEqual(reward.tolist(), [-0.25, -0.25])
++        obs, reward, done, extras = step(env, system, torch.zeros_like(press))
++        self.assertEqual(reward.tolist(), [0, 0])
++        self.assertTrue(done.all())
++        self.assertFalse(extras["time_outs"].any())
++        self.assertEqual(system.reset_indices, [[0, 1]])
++        self.assertEqual(obs["target_active"][:, 39].tolist(), [1, 1])
++        self.assertEqual(first["pressed"].sum().item(), 0)
++
++    def test_independent_clocks(self):
++        env, system = self.make_env()
++        env.episode_length_buf[:] = torch.tensor([3, 1])
++        obs, _, done, _ = step(env, system, torch.zeros(2, 88))
++        self.assertEqual(done.tolist(), [True, False])
++        self.assertEqual(system.reset_indices, [[0]])
++        self.assertEqual(env.episode_length_buf.tolist(), [0, 2])
++        self.assertEqual(obs["target_active"][:, 39].tolist(), [1, 0])
++
++    def test_reward_integral_does_not_depend_on_control_frequency(self):
++        totals = []
++        for dt in [0.25, 0.125]:
++            env, system = self.make_env(dt)
++            total = 0
++            for _ in range(env.max_episode_length):
++                actions = env.get_observations()["target_active"]
++                _, reward, _, _ = step(env, system, actions)
++                total += reward[0].item()
++            totals.append(total)
++        self.assertEqual(totals, [0.5, 0.5])
++
++    def test_incomplete_episode_fails(self):
++        with self.assertRaisesRegex(ValueError, "at least"):
++            self.make_env(max_episode_length=1)
++
++    def test_state_has_assigned_distances_and_rewards_are_pure(self):
++        distances = torch.full((2, 5, 88), 1.0)
++        distances[:, 2, 39] = 0.0  # The middle fingertip is on C4 in both envs.
++        env, _ = self.make_env(distances=distances)
++        state = env.get_observations()
++        self.assertEqual(state.target_fingers[:, 39].tolist(), [2, 2])
++        self.assertEqual(state.target_key_distances[:, 39].tolist(), [0, 0])
++        self.assertEqual(note_nearness(state, None, scale=0.02).tolist(), [1, 1])
++
++        plan = Path(self.directory.name) / "plan.json"
++        plan.write_text(json.dumps({"notes": [
++            {"start": 0, "duration": 0.5, "pitch": 60, "finger": 1}
++        ]}))
++        env, _ = self.make_env(distances=distances, fingering_path=str(plan))
++        state = env.get_observations()
++        # The plan says the thumb plays C4, and the thumb is 1 m away; nearness still
++        # credits the middle finger, finger_nearness does not.
++        self.assertEqual(state.planned_fingers[:, 39].tolist(), [0, 0])
++        self.assertEqual(state.target_fingers[:, 39].tolist(), [2, 2])
++        self.assertEqual(note_nearness(state, None, scale=0.02).tolist(), [1, 1])
++        self.assertLess(finger_nearness(state, None, scale=0.02).max().item(), 1e-6)
++
++    def test_env_colors_keys_by_what_the_rewards_scored(self):
++        env, system = self.make_env()
++        press = torch.zeros(2, 88)
++        press[:, 40] = 1  # C#4 instead of the requested C4.
++        step(env, system, press)
++        colors = system.shown_colors[-1]
++        self.assertEqual(colors.shape, (88, 4))
++        torch.testing.assert_close(colors[39], torch.tensor(env.cfg.target_color))
++        torch.testing.assert_close(colors[40], torch.tensor(env.cfg.wrong_color))
++        self.assertEqual((colors[:, 3] > 0).sum().item(), 2)
++
++        env, system = self.make_env(color_correctness=False)
++        step(env, system, press)
++        self.assertEqual(system.shown_colors, [])
++
++    def test_rewards_use_the_score_at_the_start_of_the_interval(self):
++        weights = {**ALL_WEIGHTS, "note_nearness": 1}
++        distances = torch.full((2, 5, 88), 1.0)
++        distances[:, 2, 39] = 0.0
++        env, system = self.make_env(distances=distances, reward_weights=weights)
++        press = torch.zeros(2, 88)
++        press[:, 39] = 1
++        _, reward, _, extras = step(env, system, press)
++        # Correct note (+1), nearness (+1), over a 0.25 s interval.
++        self.assertEqual(reward.tolist(), [0.5, 0.5])
++        self.assertEqual(extras["log"]["reward/note_nearness"], 1)
++
++    def test_action_rate_posture_and_orientation_come_from_state(self):
++        env, _ = self.make_env()
++        state = env.get_observations()
++        still = HandPianoAction.from_tensor(torch.zeros(2, 27))
++        self.assertEqual(action_rate(state, still).tolist(), [0, 0])
++        jump = HandPianoAction.from_tensor(torch.full((2, 27), 5.0))  # Clipped to 1.
++        self.assertEqual(action_rate(state, jump).tolist(), [-1, -1])
++        self.assertEqual(finger_posture(state, still, scale=0.3).tolist(), [1, 1])
++        self.assertEqual(hand_orientation(state, still, scale=0.3).tolist(), [1, 1])
++        state.posture_error[0] = 0.3
++        state.orientation_error[0] = 0.3
++        torch.testing.assert_close(
++            finger_posture(state, still, scale=0.3), torch.tensor([math.exp(-1), 1.0])
++        )
++        torch.testing.assert_close(
++            hand_orientation(state, still, scale=0.3), torch.tensor([math.exp(-1), 1.0])
++        )
++
++    def test_previous_action_is_the_last_clipped_action_and_resets(self):
++        env, system = self.make_env()
++        system.next_pressed = torch.zeros(2, 88)
++        env.step(torch.full((2, 27), 3.0))
++        self.assertTrue((env.get_observations().previous_action == 1).all())
++        env.episode_length_buf[:] = torch.tensor([env.max_episode_length - 1, 0])
++        obs, *_ = env.step(torch.full((2, 27), 0.5))
++        self.assertEqual(obs.previous_action[:, 0].tolist(), [0, 0.5])
++
++    def test_curriculum_raises_penalties_as_recall_improves(self):
++        final = ALL_WEIGHTS | {"extra_notes": 2}
++        env, system = self.make_env(
++            final_reward_weights=final,
++            curriculum_start=0.0,
++            curriculum_end=1.0,
++            curriculum_rate=1.0,
++        )
++        # Play every requested note for a whole episode in both environments.
++        obs = env.get_observations()
++        for _ in range(env.max_episode_length):
++            obs, _, done, extras = step(env, system, obs["target_active"])
++        self.assertTrue(done.all())
++        self.assertEqual(extras["log"]["curriculum/note_recall"], 1.0)
++        self.assertEqual(extras["log"]["curriculum/progress"], 1.0)
++        self.assertEqual(env._reward._weights[REWARD_TERMS.index("extra_notes")].item(), 2)
++
++if __name__ == "__main__":
++    unittest.main()
+diff --git a/scripts/test_notes_to_fingers.py b/tests/test_notes_to_fingers.py
+similarity index 95%
+rename from scripts/test_notes_to_fingers.py
+rename to tests/test_notes_to_fingers.py
+index 7448267..4db2410 100644
+--- a/scripts/test_notes_to_fingers.py
++++ b/tests/test_notes_to_fingers.py
+@@ -2,12 +2,12 @@ import json
+ import unittest
+ from pathlib import Path
+ 
+-from notes_to_fingers import notes_to_fingers
++from scripts.notes_to_fingers import notes_to_fingers
+ 
+ 
+ class FingerPlannerTests(unittest.TestCase):
+     def test_reference_exercise(self):
+-        path = Path(__file__).parent / "samples/right_hand/expected.notes.json"
++        path = Path(__file__).parents[1] / "samples/right_hand/expected.notes.json"
+         plan = notes_to_fingers(json.loads(path.read_text()))
+         self.assertEqual(
+             [n["finger"] for n in plan["notes"]],
+diff --git a/scripts/test_piano_state.py b/tests/test_piano_state.py
+similarity index 99%
+rename from scripts/test_piano_state.py
+rename to tests/test_piano_state.py
+index 305fcc2..84b36b5 100644
+--- a/scripts/test_piano_state.py
++++ b/tests/test_piano_state.py
+@@ -1,6 +1,6 @@
+ """State/timing checks using the pulled interfaces without Genesis or robot assets.
+ 
+-Run with Python 3.13 and project dependencies: python -m unittest scripts.test_piano_state
++Run with Python 3.13 and project dependencies: python -m unittest tests.test_piano_state
+ """
+ 
+ import json
+diff --git a/scripts/test_sheet_music_to_notes.py b/tests/test_sheet_music_to_notes.py
+similarity index 91%
+rename from scripts/test_sheet_music_to_notes.py
+rename to tests/test_sheet_music_to_notes.py
+index 6d2032c..e71b34d 100644
+--- a/scripts/test_sheet_music_to_notes.py
++++ b/tests/test_sheet_music_to_notes.py
+@@ -7,8 +7,12 @@ import unittest
+ from pathlib import Path
+ from unittest.mock import patch
+ 
+-from music21 import bar, chord, layout, meter, note, stream, tempo, tie
+-from sheet_music_to_notes import musicxml_to_notes, sheet_music_to_notes
++try:
++    from music21 import bar, chord, layout, meter, note, stream, tempo, tie
++except ImportError as error:
++    raise unittest.SkipTest("music21 is not installed") from error
++
++from scripts.sheet_music_to_notes import musicxml_to_notes, sheet_music_to_notes
+ 
+ 
+ class SheetMusicTests(unittest.TestCase):
+@@ -85,8 +89,8 @@ class SheetMusicTests(unittest.TestCase):
+             return subprocess.CompletedProcess(command, 0, "", "")
+ 
+         with (
+-            patch("sheet_music_to_notes.shutil.which", return_value="Audiveris"),
+-            patch("sheet_music_to_notes.subprocess.run", side_effect=fake_recognition),
++            patch("scripts.sheet_music_to_notes.shutil.which", return_value="Audiveris"),
++            patch("scripts.sheet_music_to_notes.subprocess.run", side_effect=fake_recognition),
+         ):
+             self.assertEqual(
+                 sheet_music_to_notes(image), [(0.0, 0.5, 60), (1.0, 0.5, 62)]

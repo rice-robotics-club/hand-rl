@@ -1,0 +1,38 @@
+name: Lint, Type Check, and Test
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+jobs:
+  checks:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+        with:
+          submodules: true
+      - name: Setup UV
+        uses: astral-sh/setup-uv@v10.2.0
+        with:
+          activate-environment: true
+      # pyaudio (via robopianist) compiles against portaudio.h.
+      - name: Install system dependencies
+        run: sudo apt-get update && sudo apt-get install -y portaudio19-dev
+      # robopianist raises on import if its soundfont isn't downloaded, unless an rc file names one.
+      - name: Configure robopianist
+        run: echo "DEFAULT_SOUNDFONT=TimGM6mb" > ~/.robopianistrc
+      - name: Install the project
+        run: uv sync --locked --all-extras --dev
+      - name: Lint
+        run: ruff check src scripts tests
+      - name: Check formatting
+        run: ruff format --check src scripts tests
+      - name: Type check
+        run: basedpyright
+      # The tests use fake systems, so they need no GPU or simulator scene.
+      - name: Test
+        run: python -m unittest discover -s tests -t .

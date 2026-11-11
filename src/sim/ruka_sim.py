@@ -11,13 +11,21 @@ from jaxtyping import Float
 from pydantic import Field, field_validator
 from tensordict import TypedTensorDict
 
-from .vec_system import GenesisConfig, GenesisSystem, VecAction
+from src.music.keyboard import MIDI_PITCHES
+from src.sim.vec_system import GenesisConfig, GenesisSystem, VecAction
+from src.util.geometry import FREE_JOINT_DOFS, free_joint_values
 
 if TYPE_CHECKING:
     from genesis.engine.entities import RigidEntity
 
-NUM_BASE_DOFS = 6
+NUM_BASE_DOFS = FREE_JOINT_DOFS
 """The free joint of the hand base: 3 translational DOFs, then 3 rotational DOFs."""
+
+NUM_DOFS = 27
+"""The base, then the wrist and finger joints, in Genesis DOF order."""
+
+NUM_FINGERTIPS = 5
+"""Fingertip sensor slots, thumb to pinky (not measured yet; see fingertip_valid)."""
 
 
 class RukaState(TypedTensorDict):
@@ -34,8 +42,8 @@ class RukaState(TypedTensorDict):
     joint_velocities: Float[torch.Tensor, "*batch dofs"]
     time: Float[torch.Tensor, "*batch 1"]
     control_dt: Float[torch.Tensor, "*batch 1"]
-    fingertip_positions: Float[torch.Tensor, "*batch 15"]
-    fingertip_valid: Float[torch.Tensor, "*batch 5"]
+    fingertip_positions: Float[torch.Tensor, f"*batch {3 * NUM_FINGERTIPS}"]
+    fingertip_valid: Float[torch.Tensor, f"*batch {NUM_FINGERTIPS}"]
     key_pitches: Float[torch.Tensor, "*batch keys"]
     key_displacement: Float[torch.Tensor, "*batch keys"]
     key_pressed: Float[torch.Tensor, "*batch keys"]
@@ -45,12 +53,14 @@ class RukaState(TypedTensorDict):
 class RukaAction(VecAction):
     """Normalized offsets from the robot's default pose, used as PD position targets."""
 
-    joint_angles: Float[torch.Tensor, "*batch 27"]
+    joint_angles: Float[torch.Tensor, f"*batch {NUM_DOFS}"]
     """One offset per DOF, in Genesis DOF order (free base first, then joints)."""
 
     @classmethod
     @override
-    def from_tensor(cls, tensor: Float[torch.Tensor, "*batch 27"]) -> "RukaAction":
+    def from_tensor(
+        cls, tensor: Float[torch.Tensor, f"*batch {NUM_DOFS}"]
+    ) -> "RukaAction":
         """Converts a tensor to a RukaAction instance."""
         return cls(joint_angles=tensor, batch_size=tensor.shape[:-1])
 
@@ -72,7 +82,7 @@ class RukaSimConfig(GenesisConfig):
     @field_validator("key_pitches")
     @classmethod
     def validate_pitches(cls, pitches: list[int]) -> list[int]:
-        if len(set(pitches)) != len(pitches) or any(p < 0 or p > 127 for p in pitches):
+        if len(set(pitches)) != len(pitches) or not set(pitches) <= set(MIDI_PITCHES):
             raise ValueError("key_pitches must be unique MIDI pitches in 0..127")
         return pitches
 
@@ -100,7 +110,9 @@ class RukaSim(GenesisSystem[RukaState, RukaAction, RukaSimConfig]):
             update={"dt": cfg.control_dt, "substeps": cfg.physics_substeps}
         )
         cfg = cfg.model_copy(
-            update={"genesis": cfg.genesis.model_copy(update={"sim_options": sim_options})}
+            update={
+                "genesis": cfg.genesis.model_copy(update={"sim_options": sim_options})
+            }
         )
         super().__init__(cfg)
 
@@ -129,10 +141,10 @@ class RukaSim(GenesisSystem[RukaState, RukaAction, RukaSimConfig]):
 
         base_dofs = range(NUM_BASE_DOFS)
         self._robot.set_dofs_kp(
-            torch.tensor([cfg.base_kp[0]] * 3 + [cfg.base_kp[1]] * 3), base_dofs
+            torch.tensor(free_joint_values(*cfg.base_kp)), base_dofs
         )
         self._robot.set_dofs_kv(
-            torch.tensor([cfg.base_kv[0]] * 3 + [cfg.base_kv[1]] * 3), base_dofs
+            torch.tensor(free_joint_values(*cfg.base_kv)), base_dofs
         )
 
         self._default_dofs: torch.Tensor = torch.as_tensor(
@@ -162,8 +174,8 @@ class RukaSim(GenesisSystem[RukaState, RukaAction, RukaSimConfig]):
             control_dt=torch.full(
                 (self._num_envs, 1), self._dt, dtype=torch.float64, device=device
             ),
-            fingertip_positions=zeros(15),
-            fingertip_valid=zeros(5),
+            fingertip_positions=zeros(3 * NUM_FINGERTIPS),
+            fingertip_valid=zeros(NUM_FINGERTIPS),
             key_pitches=torch.tensor(cfg.key_pitches, device=device)
             .to(position.dtype)
             .expand(self._num_envs, -1)

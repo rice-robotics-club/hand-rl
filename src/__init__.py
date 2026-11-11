@@ -27,5 +27,11 @@ configuration files specifying the training algorithm, environment and simulatio
 - `src.config`: This module contains the configuration classes modeling the training and simulation parameters.
 - `src.env`: This module contains environments satisfying the RSL-RL `VecEnv` abstract class, which each provide a situation and reward function for a reinforcement learning scenario.
 - `src.sim`: This module contains the `VecSystem` abstract class for a vectorized robotics simulator or dynamic system, allowing the same RL setup to be shared between physical environments (e.g. real robot vs simulation).
+- `src.reward`: Reward terms and helpers shared between environments, plus `RewardFunction`, which weights and sums them.
+- `src.music`: Notes, scores, fingering, and audio: converting MIDI and sheet music to notes, and what each key should be doing over time.
+- `src.util`: Helpers for scripts (building systems, environments, and runners from a config) and geometry.
+
+`src.sim` and `src.env` only hold implementations of their base classes (one file per
+system or environment). Shared helpers live in the other packages.
 
 """

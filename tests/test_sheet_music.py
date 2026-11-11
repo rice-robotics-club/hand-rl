@@ -5,23 +5,34 @@ import subprocess
 import tempfile
 import unittest
 from pathlib import Path
+from typing import override
 from unittest.mock import patch
 
 try:
-    from music21 import bar, chord, layout, meter, note, stream, tempo, tie
+    from music21 import (  # pyright: ignore[reportMissingImports]
+        bar,
+        chord,
+        layout,
+        meter,
+        note,
+        stream,
+        tempo,
+        tie,
+    )
 except ImportError as error:
     raise unittest.SkipTest("music21 is not installed") from error
 
-from scripts.sheet_music_to_notes import musicxml_to_notes, sheet_music_to_notes
+from src.music.sheet_music import musicxml_to_notes, sheet_music_to_notes
 
 
 class SheetMusicTests(unittest.TestCase):
+    @override
     def setUp(self):
         self.directory = tempfile.TemporaryDirectory()
         self.addCleanup(self.directory.cleanup)
         self.root = Path(self.directory.name)
 
-    def write_score(self, measures):
+    def write_score(self, measures: "list[stream.Measure]") -> Path:
         part = stream.Part()
         for measure in measures:
             part.append(measure)
@@ -31,7 +42,7 @@ class SheetMusicTests(unittest.TestCase):
         score.write("musicxml", fp=path)
         return path
 
-    def simple_score(self, repeat=False):
+    def simple_score(self, repeat: bool = False) -> Path:
         measure = stream.Measure(number=1)
         measure.append(meter.TimeSignature("4/4"))
         measure.append(note.Note("C4", quarterLength=1))
@@ -81,7 +92,7 @@ class SheetMusicTests(unittest.TestCase):
         image = self.root / "sheet with spaces.PNG"
         image.touch()
 
-        def fake_recognition(command, **kwargs):
+        def fake_recognition(command: list[str], **kwargs: object):
             output = Path(command[command.index("-output") + 1]) / "book"
             output.mkdir()
             shutil.copyfile(fixture, output / "book.musicxml")
@@ -89,8 +100,8 @@ class SheetMusicTests(unittest.TestCase):
             return subprocess.CompletedProcess(command, 0, "", "")
 
         with (
-            patch("scripts.sheet_music_to_notes.shutil.which", return_value="Audiveris"),
-            patch("scripts.sheet_music_to_notes.subprocess.run", side_effect=fake_recognition),
+            patch("src.music.sheet_music.shutil.which", return_value="Audiveris"),
+            patch("src.music.sheet_music.subprocess.run", side_effect=fake_recognition),
         ):
             self.assertEqual(
                 sheet_music_to_notes(image), [(0.0, 0.5, 60), (1.0, 0.5, 62)]

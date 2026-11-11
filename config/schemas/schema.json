@@ -1059,20 +1059,24 @@
           "type": "string"
         },
         "notes_path": {
-          "default": "samples/right_hand/expected.notes.json",
-          "description": "JSON (start seconds, duration seconds, MIDI pitch) rows; relative to working directory.",
+          "default": "data/right_hand/expected.notes.json",
+          "description": "JSON list of [start seconds, duration seconds, MIDI pitch] to play; relative to\nthe working directory.",
           "title": "Notes Path",
           "type": "string"
         },
-        "key_pitches": {
-          "description": "MIDI pitch of each pressed-state channel; must match piano DOF order.",
-          "items": {
-            "type": "integer"
-          },
-          "maxItems": 88,
-          "minItems": 88,
-          "title": "Key Pitches",
-          "type": "array"
+        "lead_in_seconds": {
+          "default": 0.5,
+          "description": "Time to get ready before the score starts.",
+          "minimum": 0,
+          "title": "Lead In Seconds",
+          "type": "number"
+        },
+        "release_tail_seconds": {
+          "default": 0.5,
+          "description": "Time after the score to release held keys.",
+          "exclusiveMinimum": 0,
+          "title": "Release Tail Seconds",
+          "type": "number"
         },
         "max_episode_length": {
           "anyOf": [
@@ -1085,56 +1089,67 @@
             }
           ],
           "default": null,
-          "description": "Control steps per episode; None covers score, lead-in, and release tail.",
+          "description": "Control steps per episode; None fits the lead-in, the score, and the tail.",
           "title": "Max Episode Length"
-        },
-        "lead_in_seconds": {
-          "default": 0.5,
-          "description": "Preparation time before the first score note.",
-          "minimum": 0,
-          "title": "Lead In Seconds",
-          "type": "number"
-        },
-        "release_tail_seconds": {
-          "default": 0.5,
-          "description": "Time after the score to reward releasing held keys.",
-          "exclusiveMinimum": 0,
-          "title": "Release Tail Seconds",
-          "type": "number"
         },
         "pressed_threshold": {
           "default": 0.5,
-          "description": "Fraction of key travel counted as an actual press.",
+          "description": "Fraction of key travel that counts as a press.",
           "exclusiveMinimum": 0,
           "maximum": 1,
           "title": "Pressed Threshold",
           "type": "number"
         },
+        "finger_pitches": {
+          "description": "The key under each finger, thumb to pinky, in the hand's starting position.\n\nfinger_nearness wants each of these keys played by its own finger. The default,\nC4 D4 E4 F4 G4, matches HandPiano's default starting position.",
+          "items": {
+            "type": "integer"
+          },
+          "maxItems": 5,
+          "minItems": 5,
+          "title": "Finger Pitches",
+          "type": "array"
+        },
         "nearness_scale": {
           "default": 0.02,
-          "description": "Distance scale in meters for 1-tanh(distance/scale).",
+          "description": "Distance in meters for the nearness terms' 1 - tanh(distance / scale).",
           "exclusiveMinimum": 0,
           "title": "Nearness Scale",
           "type": "number"
         },
-        "fingering_path": {
-          "anyOf": [
-            {
-              "type": "string"
-            },
-            {
-              "type": "null"
-            }
-          ],
-          "default": null,
-          "description": "Optional fingering plan (from scripts/notes_to_fingers.py) for finger_nearness.\n\nnote_nearness always measures each active key from the closest distinct finger.\nfinger_nearness measures it from the plan's finger, or matches note_nearness if\nthis is None.",
-          "title": "Fingering Path"
+        "target_hit_velocity": {
+          "default": 1.0,
+          "description": "Wanted key speed at the hit, in fractions of key travel per second.\n\nEvery note uses this one value. Look at real hit_velocity values and tune this\nbefore turning key_intensity on.",
+          "exclusiveMinimum": 0,
+          "title": "Target Hit Velocity",
+          "type": "number"
+        },
+        "intensity_scale": {
+          "default": 0.2,
+          "description": "Hit speed error at which key_intensity falls to 1/e.",
+          "exclusiveMinimum": 0,
+          "title": "Intensity Scale",
+          "type": "number"
+        },
+        "posture_scale": {
+          "default": 0.3,
+          "description": "RMS joint error in radians at which finger_posture falls to 1/e.",
+          "exclusiveMinimum": 0,
+          "title": "Posture Scale",
+          "type": "number"
+        },
+        "orientation_scale": {
+          "default": 0.3,
+          "description": "Base rotation in radians at which hand_orientation falls to 1/e.",
+          "exclusiveMinimum": 0,
+          "title": "Orientation Scale",
+          "type": "number"
         },
         "reward_weights": {
           "additionalProperties": {
             "type": "number"
           },
-          "description": "Nonnegative weight per reward term; at curriculum progress 0 if one is set.",
+          "description": "Nonnegative weight per reward term, at the start of the curriculum.",
           "title": "Reward Weights",
           "type": "object"
         },
@@ -1151,12 +1166,12 @@
             }
           ],
           "default": null,
-          "description": "Weights at curriculum progress 1; weights move linearly between the two sets.\n\nNone keeps reward_weights throughout. Progress rises with note recall; see\ncurriculum_start and curriculum_end.",
+          "description": "Weights at the end of the curriculum; None keeps reward_weights throughout.",
           "title": "Final Reward Weights"
         },
         "curriculum_start": {
           "default": 0.1,
-          "description": "Average note recall at which curriculum progress starts rising from 0.",
+          "description": "Average note recall at which the weights start moving toward the final ones.",
           "maximum": 1,
           "minimum": 0,
           "title": "Curriculum Start",
@@ -1164,7 +1179,7 @@
         },
         "curriculum_end": {
           "default": 0.7,
-          "description": "Average note recall at which curriculum progress reaches 1.",
+          "description": "Average note recall at which the weights reach the final ones.",
           "maximum": 1,
           "minimum": 0,
           "title": "Curriculum End",
@@ -1172,126 +1187,47 @@
         },
         "curriculum_rate": {
           "default": 0.2,
-          "description": "How far one full batch of finished episodes moves the average note recall.\n\nSmaller is smoother; a reward that changes quickly destabilizes PPO's value\nestimates. Progress never decreases.",
+          "description": "How far one full batch of finished episodes moves the average note recall.\n\nSmaller is smoother; a reward that changes quickly destabilizes PPO's value\nestimates.",
           "exclusiveMinimum": 0,
           "maximum": 1,
           "title": "Curriculum Rate",
           "type": "number"
         },
-        "posture_scale": {
-          "default": 0.3,
-          "description": "RMS joint deviation in radians at which finger_posture falls to 1/e.",
-          "exclusiveMinimum": 0,
-          "title": "Posture Scale",
-          "type": "number"
-        },
-        "orientation_scale": {
-          "default": 0.3,
-          "description": "Base rotation in radians at which hand_orientation falls to 1/e.",
-          "exclusiveMinimum": 0,
-          "title": "Orientation Scale",
-          "type": "number"
-        },
-        "target_hit_velocity": {
-          "default": 1.0,
-          "description": "Wanted key speed at the hit, in fractions of key travel per second.\n\nThe score has no dynamics yet, so every note uses this one value. Print real\nhit_velocity values and tune this before turning key_intensity on.",
-          "exclusiveMinimum": 0,
-          "title": "Target Hit Velocity",
-          "type": "number"
-        },
         "color_correctness": {
           "default": true,
-          "description": "Color environment 0's keys in the viewer by correctness, as scored by the rewards.\n\nWanted keys are target_color until pressed, then correct_color; unwanted pressed\nkeys are wrong_color. Replaces the piano's color_pressed. Does nothing without a\nviewer.",
+          "description": "Color environment 0's keys in the viewer: target_color for wanted keys that are\nup, correct_color for wanted keys that are down, wrong_color for unwanted keys that\nare down. Replaces the piano's color_pressed. Does nothing without a viewer.",
           "title": "Color Correctness",
           "type": "boolean"
         },
         "target_color": {
+          "$ref": "#/$defs/RGBA",
           "default": [
             0.2,
             0.4,
             1.0,
             0.7
           ],
-          "description": "RGBA color for keys the score wants that are not down (blue).",
-          "maxItems": 4,
-          "minItems": 4,
-          "prefixItems": [
-            {
-              "type": "number"
-            },
-            {
-              "type": "number"
-            },
-            {
-              "type": "number"
-            },
-            {
-              "type": "number"
-            }
-          ],
-          "title": "Target Color",
-          "type": "array"
+          "description": "Blue."
         },
         "correct_color": {
+          "$ref": "#/$defs/RGBA",
           "default": [
             0.2,
             0.9,
             0.3,
             0.7
           ],
-          "description": "RGBA color for wanted keys that are down (green).",
-          "maxItems": 4,
-          "minItems": 4,
-          "prefixItems": [
-            {
-              "type": "number"
-            },
-            {
-              "type": "number"
-            },
-            {
-              "type": "number"
-            },
-            {
-              "type": "number"
-            }
-          ],
-          "title": "Correct Color",
-          "type": "array"
+          "description": "Green."
         },
         "wrong_color": {
+          "$ref": "#/$defs/RGBA",
           "default": [
             1.0,
             0.2,
             0.2,
             0.7
           ],
-          "description": "RGBA color for unwanted keys that are down (red).",
-          "maxItems": 4,
-          "minItems": 4,
-          "prefixItems": [
-            {
-              "type": "number"
-            },
-            {
-              "type": "number"
-            },
-            {
-              "type": "number"
-            },
-            {
-              "type": "number"
-            }
-          ],
-          "title": "Wrong Color",
-          "type": "array"
-        },
-        "intensity_scale": {
-          "default": 0.2,
-          "description": "Width of the exp(-(err/scale)^2) bump around target_hit_velocity.",
-          "exclusiveMinimum": 0,
-          "title": "Intensity Scale",
-          "type": "number"
+          "description": "Red."
         }
       },
       "required": [
@@ -1901,9 +1837,23 @@
           "title": "Audio Gain",
           "type": "number"
         },
+        "audio_period_size": {
+          "default": 1024,
+          "description": "Frames per FluidSynth audio buffer; each 1024 adds about 23 ms of latency.\n\nFluidSynth's default of 64 underruns, which sounds like pulsing, on devices that\nPipeWire runs with large buffers, such as USB audio interfaces.",
+          "minimum": 64,
+          "title": "Audio Period Size",
+          "type": "integer"
+        },
+        "audio_periods": {
+          "default": 4,
+          "description": "Number of FluidSynth audio buffers.",
+          "minimum": 2,
+          "title": "Audio Periods",
+          "type": "integer"
+        },
         "full_velocity_speed": {
           "default": 20.0,
-          "description": "Key speed (fractions of travel per second) that plays at full MIDI velocity, 127.\n\n20 means a key that goes all the way down in 50 ms. This is a starting guess, not a\ncalibrated value; slower hits are proportionally quieter, down to min_velocity.",
+          "description": "Key speed (fractions of travel per second) that plays at full MIDI velocity.\n\n20 means a key that goes all the way down in 50 ms. This is a starting guess, not a\ncalibrated value; slower hits are proportionally quieter, down to min_velocity.",
           "exclusiveMinimum": 0.0,
           "title": "Full Velocity Speed",
           "type": "number"
@@ -1991,6 +1941,25 @@
       ],
       "title": "PointLight",
       "type": "object"
+    },
+    "RGBA": {
+      "maxItems": 4,
+      "minItems": 4,
+      "prefixItems": [
+        {
+          "type": "number"
+        },
+        {
+          "type": "number"
+        },
+        {
+          "type": "number"
+        },
+        {
+          "type": "number"
+        }
+      ],
+      "type": "array"
     },
     "RNDConfig": {
       "additionalProperties": false,

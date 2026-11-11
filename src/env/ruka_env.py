@@ -1,5 +1,3 @@
-import json
-from pathlib import Path
 from typing import Literal, override
 
 import torch
@@ -9,11 +7,11 @@ from rsl_rl.env import VecEnv
 from torch import Tensor
 
 from src.base_config import Config
+from src.music.notes import load_notes
+from src.music.score import Score
 from src.reward import RewardFunction
 from src.sim import VecSystem
 from src.sim.ruka_sim import RukaAction, RukaState
-
-from .piano_targets import PianoTargets
 
 
 class PianoObservation(RukaState):
@@ -61,14 +59,9 @@ class RukaEnv(VecEnv):
         self.episode_length_buf: Tensor = torch.zeros(
             self.num_envs, dtype=torch.long, device=self.device
         )
-        notes: list[list[float]] = (
-            []
-            if cfg.notes_path is None
-            else json.loads(Path(cfg.notes_path).read_text())
-        )
-        self._targets: PianoTargets = PianoTargets(
-            notes, sim.state.key_pitches[0].tolist(), self.device
-        )
+        notes = [] if cfg.notes_path is None else load_notes(cfg.notes_path)
+        self._pitches: list[int] = [int(p) for p in sim.state.key_pitches[0].tolist()]
+        self._score: Score = Score.from_notes(notes, self._pitches, self.device)
         self._reward: RewardFunction[RukaState, RukaAction] = RewardFunction[
             RukaState, RukaAction
         ](
@@ -86,7 +79,7 @@ class RukaEnv(VecEnv):
         observations: dict[str, Tensor] = {
             key: value.clone().float() for key, value in state.items()
         }
-        observations.update(self._targets.sample(state.time))
+        observations.update(self._score.targets(state.time, len(self._pitches)))
         return PianoObservation(
             **observations,  # pyright: ignore[reportArgumentType]
             batch_size=[self.num_envs],

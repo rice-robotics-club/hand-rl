@@ -74,6 +74,11 @@ class VecSystem[
         raise NotImplementedError
 
     @property
+    def dt(self) -> float:
+        """Seconds of system time that one `step` advances."""
+        raise NotImplementedError
+
+    @property
     def state(self) -> S:
         """The current state of the system."""
         raise NotImplementedError
@@ -148,6 +153,12 @@ class GenesisSystem[
         """The gs.Scene object associated with this system."""
         return self._scene
 
+    @property
+    @override
+    def dt(self) -> float:
+        """The scene's timestep: one `step` advances the scene once."""
+        return float(self.cfg.genesis.sim_options.dt)
+
 
 class ChildSystem[S: _State, A: _Action, C: Config](VecSystem[S, A, C], Protocol):
     _parent: VecSystem[_State, _Action, Config]
@@ -162,6 +173,12 @@ class ChildSystem[S: _State, A: _Action, C: Config](VecSystem[S, A, C], Protocol
     @override
     def num_envs(self) -> int:
         return self._num_envs
+
+    @property
+    @override
+    def dt(self) -> float:
+        """A child system steps with its parent."""
+        return self._parent.dt
 
     @override
     def reset(self, idx: int | torch.Tensor | None = None) -> None:

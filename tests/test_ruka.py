@@ -1,23 +1,31 @@
-"""State/timing checks using the pulled interfaces without Genesis or robot assets.
-
-Run with Python 3.13 and project dependencies: python -m unittest tests.test_piano_state
-"""
+"""RukaSim and RukaEnv timing and state, with fake Genesis objects."""
 
 import json
 import tempfile
 import unittest
 from pathlib import Path
 from types import SimpleNamespace
+from typing import TYPE_CHECKING, cast
 
+import genesis as gs
 import torch
 
-from src.env.piano_targets import PianoTargets
 from src.env.ruka_env import RukaEnv, RukaEnvConfig
-from src.sim.ruka_sim import RukaAction, RukaSim, RukaSimConfig, RukaState
+from src.sim.ruka_sim import (
+    NUM_DOFS,
+    RukaAction,
+    RukaSim,
+    RukaSimConfig,
+    RukaState,
+)
+from src.sim.vec_system import VecSystem
+
+if TYPE_CHECKING:
+    from genesis.engine.entities import RigidEntity
 
 
 def make_state():
-    def zeros(width):
+    def zeros(width: int) -> torch.Tensor:
         return torch.zeros(2, width)
 
     return RukaState(
@@ -38,51 +46,14 @@ def make_state():
     )
 
 
-class TargetsTests(unittest.TestCase):
-    def test_chords_overlap_repeats_and_release(self):
-        targets = PianoTargets(
-            [(0, 0.5, 60), (0, 0.25, 64), (0.25, 0.5, 60)], [60, 64], "cpu"
-        )
-        result = targets.sample(
-            torch.tensor([[0.0], [0.25], [0.5], [0.75]], dtype=torch.float64)
-        )
-        self.assertEqual(
-            result["target_active"].tolist(), [[1, 1], [1, 0], [1, 0], [0, 0]]
-        )
-        self.assertEqual(result["target_remaining"][:, 0].tolist(), [0.5, 0.5, 0.25, 0])
-        self.assertEqual(result["next_note_valid"][:, 0].tolist(), [1, 0, 0, 0])
-        self.assertEqual(result["next_note_time"][0, 0].item(), 0.25)
-
-    def test_unrounded_onset_and_duration(self):
-        targets = PianoTargets([(0.02, 0.1, 60)], [60], "cpu")
-        result = targets.sample(
-            torch.tensor([[1 / 60], [2 / 60], [0.12]], dtype=torch.float64)
-        )
-        self.assertEqual(result["target_active"].flatten().tolist()[:2], [0, 1])
-        self.assertAlmostEqual(result["next_note_time"][0, 0].item(), 0.02 - 1 / 60)
-        self.assertAlmostEqual(result["next_note_duration"][0, 0].item(), 0.1)
-
-    def test_empty_score_and_invalid_input(self):
-        result = PianoTargets([], [60], "cpu").sample(
-            torch.zeros(2, 1, dtype=torch.float64)
-        )
-        self.assertTrue(all(not x.any() for x in result.values()))
-        for row in [
-            [0, 1, 61],
-            [0, -1, 60],
-            [-1, 1, 60],
-            [0, 1, 60.5],
-            [0, float("nan"), 60],
-            [0, 1],
-        ]:
-            with self.subTest(row=row), self.assertRaises(ValueError):
-                PianoTargets([row], [60], "cpu")
-
-
 class StateTests(unittest.TestCase):
     def test_environment_uses_system_time_and_returns_independent_snapshots(self):
         state = make_state()
-        sim = SimpleNamespace(state=state, num_envs=2, num_actions=27)
+        # Only the parts of a RukaSim that RukaEnv reads.
+        sim = cast(
+            VecSystem[RukaState, RukaAction, RukaEnvConfig],
+            SimpleNamespace(state=state, num_envs=2, num_actions=NUM_DOFS),
+        )
         with tempfile.TemporaryDirectory() as directory:
             path = Path(directory) / "notes.json"
             path.write_text(json.dumps([[0, 0.5, 60]]))
@@ -100,7 +71,9 @@ class StateTests(unittest.TestCase):
         self.assertEqual(old["joint_positions"].sum().item(), 0)
         self.assertFalse(current["key_valid"].any())
         self.assertFalse(current["fingertip_valid"].any())
-        self.assertTrue(all(x.dtype == torch.float32 for x in current.values()))
+        # Iterating a TensorDict walks its batch dimension, so ask for the keys.
+        keys = current.keys()
+        self.assertTrue(all(current[k].dtype == torch.float32 for k in keys))
 
     def test_sim_step_and_partial_reset_refresh_clock_and_measurements(self):
         # Exercise the real RukaSim step/reset methods with a small fake backend.
@@ -108,29 +81,34 @@ class StateTests(unittest.TestCase):
         sim._num_envs, sim._dt = 2, 1 / 60
         sim._steps = torch.zeros(2, 1, dtype=torch.int64)
         sim._state = make_state()
-        sim._cfg = SimpleNamespace(action_scale=0.5)
-        sim._default_dofs = torch.zeros(27)
-        sim._dofs_lower = torch.full((27,), -torch.inf)
-        sim._dofs_upper = torch.full((27,), torch.inf)
+        sim._cfg = RukaSimConfig(
+            class_name="src.sim.ruka_sim:RukaSim", action_scale=0.5
+        )
+        sim._default_dofs = torch.zeros(NUM_DOFS)
+        sim._dofs_lower = torch.full((NUM_DOFS,), -torch.inf)
+        sim._dofs_upper = torch.full((NUM_DOFS,), torch.inf)
         position = torch.ones(2, 3)
         joints = torch.ones(2, 7)
 
-        def reset(envs_idx):
+        def reset(envs_idx: int | torch.Tensor | None):
             index = slice(None) if envs_idx is None else envs_idx
             position[index] = 0
             joints[index] = 0
 
-        sim._scene = SimpleNamespace(step=lambda: None, reset=reset)
-        sim._robot = SimpleNamespace(
-            control_dofs_position=lambda _: None,
-            get_pos=lambda: position,
-            get_quat=lambda: sim._state.orientation,
-            get_vel=lambda: position,
-            get_dofs_position=lambda: joints,
-            get_dofs_velocity=lambda: joints,
+        sim._scene = cast(gs.Scene, SimpleNamespace(step=lambda: None, reset=reset))
+        sim._robot = cast(
+            "RigidEntity",
+            SimpleNamespace(
+                control_dofs_position=lambda _: None,
+                get_pos=lambda: position,
+                get_quat=lambda: sim._state.orientation,
+                get_vel=lambda: position,
+                get_dofs_position=lambda: joints,
+                get_dofs_velocity=lambda: joints,
+            ),
         )
         for _ in range(30):
-            sim.step(RukaAction.from_tensor(torch.zeros(2, 27)))
+            sim.step(RukaAction.from_tensor(torch.zeros(2, NUM_DOFS)))
         self.assertEqual(sim.state.time.tolist(), [[0.5], [0.5]])
         sim.reset(0)
         self.assertEqual(sim.state.time.tolist(), [[0], [0.5]])

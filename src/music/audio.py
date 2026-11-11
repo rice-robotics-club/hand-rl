@@ -4,9 +4,12 @@ import time
 
 import torch
 
+from src.music.keyboard import LOWEST_PITCH
+
 _CHANNEL = 0
 _PROGRAM = 0  # General MIDI Acoustic Grand Piano.
-_LOWEST_PITCH = 21  # Key 0 is A0.
+MAX_VELOCITY = 127
+"""The loudest MIDI note velocity."""
 
 
 class PianoAudio:
@@ -23,11 +26,17 @@ class PianoAudio:
         gain: float,
         full_velocity_speed: float,
         min_velocity: int,
+        period_size: int = 1024,
+        periods: int = 4,
     ):
         # Imported here so the simulation runs without FluidSynth when audio is off.
         import fluidsynth
 
-        self._synth = fluidsynth.Synth(gain=gain)
+        # FluidSynth's default 64-frame buffer underruns on devices that PipeWire runs
+        # with large buffers (e.g. 2048 frames for a USB interface), which pulses.
+        self._synth = fluidsynth.Synth(
+            gain=gain, **{"audio.period-size": period_size, "audio.periods": periods}
+        )
         self._synth.start(driver=driver)
         soundfont = self._synth.sfload(soundfont_path)
         if soundfont == -1:
@@ -39,16 +48,16 @@ class PianoAudio:
     def update(self, hit: torch.Tensor, released: torch.Tensor, speed: torch.Tensor):
         """Starts and stops notes for one environment's (keys,) masks and hit speeds."""
         for key in released.nonzero().flatten().tolist():
-            self._synth.noteoff(_CHANNEL, _LOWEST_PITCH + key)
+            self._synth.noteoff(_CHANNEL, LOWEST_PITCH + key)
         hits = hit.nonzero().flatten()
         if len(hits) == 0:
             return
         # Map key speed (fractions of travel per second) onto MIDI velocity.
-        velocities = (127 * speed[hits] / self._full_velocity_speed).clamp(
-            self._min_velocity, 127
+        velocities = (MAX_VELOCITY * speed[hits] / self._full_velocity_speed).clamp(
+            self._min_velocity, MAX_VELOCITY
         )
         for key, velocity in zip(hits.tolist(), velocities.round().int().tolist()):
-            self._synth.noteon(_CHANNEL, _LOWEST_PITCH + key, velocity)
+            self._synth.noteon(_CHANNEL, LOWEST_PITCH + key, velocity)
 
     def silence(self):
         """Stops every sounding note immediately."""

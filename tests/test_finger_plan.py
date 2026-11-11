@@ -2,12 +2,12 @@ import json
 import unittest
 from pathlib import Path
 
-from scripts.notes_to_fingers import notes_to_fingers
+from src.music.finger_plan import notes_to_fingers
 
 
 class FingerPlannerTests(unittest.TestCase):
     def test_reference_exercise(self):
-        path = Path(__file__).parents[1] / "samples/right_hand/expected.notes.json"
+        path = Path(__file__).parents[1] / "data/right_hand/expected.notes.json"
         plan = notes_to_fingers(json.loads(path.read_text()))
         self.assertEqual(
             [n["finger"] for n in plan["notes"]],

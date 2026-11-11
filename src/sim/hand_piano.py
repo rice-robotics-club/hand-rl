@@ -3,7 +3,7 @@
 A floating RUKA hand is driven by PD position targets above a piano.
 """
 
-from typing import TYPE_CHECKING, Literal, override
+from typing import TYPE_CHECKING, Literal, Protocol, override
 
 import genesis as gs
 import genesis.utils.geom as gu
@@ -14,15 +14,29 @@ from rsl_rl.utils import resolve_callable
 from tensordict import TypedTensorDict
 
 from src.base_config import Config
+from src.music.keyboard import NUM_KEYS
 from src.sim.piano import Piano, PianoConfig, PianoState
-
-from .vec_system import GenesisConfig, GenesisSystem, VecAction, VecSystem
+from src.sim.vec_system import GenesisConfig, GenesisSystem, VecAction, VecSystem
+from src.util.geometry import (
+    FREE_JOINT_DOFS,
+    TRANSLATION_DOFS,
+    free_joint_values,
+    rotvec_to_quat,
+)
 
 if TYPE_CHECKING:
     from genesis.engine.entities import RigidEntity
 
-NUM_BASE_DOFS = 6
+URDF_PATH = "robots/ruka_description/urdf/robot.urdf"
+
+NUM_BASE_DOFS = FREE_JOINT_DOFS
 """The free joint of the hand base: 3 translational DOFs, then 3 rotational DOFs."""
+
+NUM_JOINTS = 21
+"""Wrist and finger joints. Checked against the URDF when the scene is built."""
+
+NUM_ACTIONS = NUM_BASE_DOFS + NUM_JOINTS
+"""One PD target per DOF: the base, then the joints."""
 
 FINGERTIP_LINKS = (
     "thumb___joint_3",
@@ -32,6 +46,8 @@ FINGERTIP_LINKS = (
     "pinky___joint_3",
 )
 """The distal link of each finger, thumb to pinky (finger numbers 1 to 5)."""
+
+NUM_FINGERS = len(FINGERTIP_LINKS)
 
 PIANIST_POSTURE: dict[str, float] = {
     # Fingers curved at every joint. Signs differ per joint because the URDF's joint
@@ -66,16 +82,16 @@ class HandPianoState(PianoState, TypedTensorDict):
     position: Float[torch.Tensor, "*batch 3"]
     orientation: Float[torch.Tensor, "*batch 4"]
     velocity: Float[torch.Tensor, "*batch 3"]
-    joint_positions: Float[torch.Tensor, "*batch 21"]
-    target_offsets: Float[torch.Tensor, "*batch 27"]
+    joint_positions: Float[torch.Tensor, f"*batch {NUM_JOINTS}"]
+    target_offsets: Float[torch.Tensor, f"*batch {NUM_ACTIONS}"]
     """The smoothed, normalized offsets from the default pose that the PD targets use.
 
     Base DOFs first, then joints. With action_smoothing below 1 these lag the actions,
     so they are part of the state the policy needs.
     """
-    fingertip_positions: Float[torch.Tensor, "*batch 5 3"]
+    fingertip_positions: Float[torch.Tensor, f"*batch {NUM_FINGERS} 3"]
     """World-frame fingertip positions in meters, thumb to pinky."""
-    fingertip_key_distances: Float[torch.Tensor, "*batch 5 88"]
+    fingertip_key_distances: Float[torch.Tensor, f"*batch {NUM_FINGERS} {NUM_KEYS}"]
     """Distance in meters from each fingertip (thumb to pinky) to each key's press point.
 
     Keys are in pressed-channel order. Which finger should play which key is decided
@@ -83,31 +99,54 @@ class HandPianoState(PianoState, TypedTensorDict):
     """
 
 
-type PianoSystem = VecSystem[PianoState, None, Config]
-
-
 class HandPianoAction(VecAction):
     """Normalized offsets from the hand's default pose, used as PD position targets."""
 
-    base_pose: Float[torch.Tensor, "*batch 6"]
+    base_pose: Float[torch.Tensor, f"*batch {NUM_BASE_DOFS}"]
     """Offsets for the base position (x, y, z), then a rotation vector for the base.
 
     The rotation vector is expressed in the hand's default (initial) frame, so each
     component turns the hand about one of its own axes from the default orientation.
     """
 
-    joint_positions: Float[torch.Tensor, "*batch 21"]
+    joint_positions: Float[torch.Tensor, f"*batch {NUM_JOINTS}"]
     """Offsets for the wrist and finger joints."""
 
     @classmethod
     @override
-    def from_tensor(cls, tensor: Float[torch.Tensor, "*batch 27"]) -> "HandPianoAction":
+    def from_tensor(
+        cls, tensor: Float[torch.Tensor, f"*batch {NUM_ACTIONS}"]
+    ) -> "HandPianoAction":
         """Converts a tensor to a HandPianoAction instance."""
         return cls(
             base_pose=tensor[..., :NUM_BASE_DOFS],
             joint_positions=tensor[..., NUM_BASE_DOFS:],
             batch_size=tensor.shape[:-1],
         )
+
+
+class HandPianoSystem(VecSystem[HandPianoState, HandPianoAction, Config], Protocol):
+    """What HandPianoEnv needs from a hand-and-piano system, simulated or real.
+
+    HandPiano implements it in Genesis.
+    """
+
+    @property
+    def default_joint_positions(self) -> Float[torch.Tensor, f"{NUM_JOINTS}"]:
+        """The wrist and finger angles the hand starts and resets in."""
+        ...
+
+    @property
+    def default_orientation(self) -> Float[torch.Tensor, "4"]:
+        """The (w, x, y, z) quaternion the hand base starts and resets in."""
+        ...
+
+    def show_key_colors(self, colors: Float[torch.Tensor, f"{NUM_KEYS} 4"]) -> None:
+        """Colors environment 0's keys with RGBA colors, e.g. in a viewer.
+
+        Zero alpha leaves a key uncolored. Systems without a display ignore this.
+        """
+        ...
 
 
 class HandPianoConfig(GenesisConfig):
@@ -201,30 +240,26 @@ class HandPiano(GenesisSystem[HandPianoState, HandPianoAction, HandPianoConfig])
         # as if the hand were mounted on an arm.
         self._hand: RigidEntity = self._scene.add_entity(
             gs.morphs.URDF(
-                file="robots/ruka_description/urdf/robot.urdf",
+                file=URDF_PATH,
                 pos=cfg.initial_position,
                 euler=cfg.initial_orientation,
             ),
             material=gs.materials.Rigid(gravity_compensation=1.0),
         )
 
-        self._piano: Piano = resolve_callable(cfg.piano.class_name)(
-            cfg.piano, self
-        )
+        self._piano: Piano = resolve_callable(cfg.piano.class_name)(cfg.piano, self)
 
         self._scene.build(self._num_envs)
+        if self._hand.n_dofs != NUM_ACTIONS:
+            raise ValueError(
+                f"{URDF_PATH} has {self._hand.n_dofs} DOFs; expected {NUM_ACTIONS}"
+            )
 
         base_dofs = range(NUM_BASE_DOFS)
-        self._hand.set_dofs_kp(
-            torch.tensor([cfg.base_kp[0]] * 3 + [cfg.base_kp[1]] * 3), base_dofs
-        )
-        self._hand.set_dofs_kv(
-            torch.tensor([cfg.base_kv[0]] * 3 + [cfg.base_kv[1]] * 3), base_dofs
-        )
+        self._hand.set_dofs_kp(torch.tensor(free_joint_values(*cfg.base_kp)), base_dofs)
+        self._hand.set_dofs_kv(torch.tensor(free_joint_values(*cfg.base_kv)), base_dofs)
         if cfg.base_force_limit is not None:
-            limit = torch.tensor(
-                [cfg.base_force_limit[0]] * 3 + [cfg.base_force_limit[1]] * 3
-            )
+            limit = torch.tensor(free_joint_values(*cfg.base_force_limit))
             self._hand.set_dofs_force_range(-limit, limit, base_dofs)
 
         self._fingertip_links: list[int] = [
@@ -238,9 +273,7 @@ class HandPiano(GenesisSystem[HandPianoState, HandPianoAction, HandPianoConfig])
             self._default_dofs[self._hand.get_joint(name).dofs_idx_local[0]] = angle
         translation, rotation = cfg.base_action_scale or (cfg.action_scale,) * 2
         self._action_scales: torch.Tensor = torch.tensor(
-            [translation] * 3
-            + [rotation] * 3
-            + [cfg.action_scale] * (self._hand.n_dofs - NUM_BASE_DOFS),
+            free_joint_values(translation, rotation) + [cfg.action_scale] * NUM_JOINTS,
             device=gs.device,
         )
         # Euler offsets are degenerate in the default pose (Genesis's free-joint Euler
@@ -250,25 +283,23 @@ class HandPiano(GenesisSystem[HandPianoState, HandPianoAction, HandPianoConfig])
         lower, upper = self._hand.get_dofs_limit()
         self._dofs_lower: torch.Tensor = lower.clone()
         self._dofs_upper: torch.Tensor = upper.clone()
-        self._dofs_lower[:3] = torch.tensor(cfg.workspace_lower, device=gs.device)
-        self._dofs_upper[:3] = torch.tensor(cfg.workspace_upper, device=gs.device)
+        position = slice(TRANSLATION_DOFS)
+        self._dofs_lower[position] = torch.tensor(cfg.workspace_lower, device=gs.device)
+        self._dofs_upper[position] = torch.tensor(cfg.workspace_upper, device=gs.device)
+
+        def zeros(*shape: int) -> torch.Tensor:
+            return torch.zeros((self._num_envs, *shape), device=gs.device)
 
         self._state: HandPianoState = HandPianoState(
-            position=torch.zeros((self._num_envs, 3), device=gs.device),
-            orientation=torch.zeros((self._num_envs, 4), device=gs.device),
-            velocity=torch.zeros((self._num_envs, 3), device=gs.device),
-            joint_positions=torch.zeros(
-                (self._num_envs, self.num_actions - NUM_BASE_DOFS), device=gs.device
-            ),
-            target_offsets=torch.zeros(
-                (self._num_envs, self.num_actions), device=gs.device
-            ),
-            fingertip_positions=torch.zeros((self._num_envs, 5, 3), device=gs.device),
-            fingertip_key_distances=torch.zeros(
-                (self._num_envs, 5, 88), device=gs.device
-            ),
-            pressed=torch.zeros((self._num_envs, 88), device=gs.device),
-            hit_velocity=torch.zeros((self._num_envs, 88), device=gs.device),
+            position=zeros(3),
+            orientation=zeros(4),
+            velocity=zeros(3),
+            joint_positions=zeros(NUM_JOINTS),
+            target_offsets=zeros(NUM_ACTIONS),
+            fingertip_positions=zeros(NUM_FINGERS, 3),
+            fingertip_key_distances=zeros(NUM_FINGERS, NUM_KEYS),
+            pressed=zeros(NUM_KEYS),
+            hit_velocity=zeros(NUM_KEYS),
             batch_size=self._num_envs,
             device=gs.device,
         )
@@ -284,7 +315,7 @@ class HandPiano(GenesisSystem[HandPianoState, HandPianoAction, HandPianoConfig])
     @override
     def num_actions(self) -> int:
         """One PD target per hand DOF."""
-        return self._hand.n_dofs
+        return NUM_ACTIONS
 
     @property
     @override
@@ -293,7 +324,7 @@ class HandPiano(GenesisSystem[HandPianoState, HandPianoAction, HandPianoConfig])
         return self._state
 
     @property
-    def default_joint_positions(self) -> Float[torch.Tensor, "21"]:
+    def default_joint_positions(self) -> Float[torch.Tensor, f"{NUM_JOINTS}"]:
         """The wrist and finger angles of the default pose (the pianist posture)."""
         return self._default_dofs[NUM_BASE_DOFS:]
 
@@ -313,10 +344,12 @@ class HandPiano(GenesisSystem[HandPianoState, HandPianoAction, HandPianoConfig])
         offsets = self._action_scales * smoothed
         targets = self._default_dofs + offsets
         rotation = gu.transform_quat_by_quat(
-            _rotvec_to_quat(offsets[..., 3:NUM_BASE_DOFS]),
+            rotvec_to_quat(offsets[..., TRANSLATION_DOFS:NUM_BASE_DOFS]),
             self._default_quat.expand(*offsets.shape[:-1], 4),
         )
-        targets[..., 3:NUM_BASE_DOFS] = gu.quat_to_xyz(rotation)
+        targets[..., TRANSLATION_DOFS:NUM_BASE_DOFS] = torch.as_tensor(
+            gu.quat_to_xyz(rotation)
+        )
         self._hand.control_dofs_position(
             targets.clamp(self._dofs_lower, self._dofs_upper)
         )
@@ -338,7 +371,7 @@ class HandPiano(GenesisSystem[HandPianoState, HandPianoAction, HandPianoConfig])
         self._piano.reset(idx)
         self._update_state()
 
-    def show_key_colors(self, colors: Float[torch.Tensor, "88 4"]):
+    def show_key_colors(self, colors: Float[torch.Tensor, f"{NUM_KEYS} 4"]):
         """Colors environment 0's piano keys in the viewer; see Piano.show_key_colors."""
         self._piano.show_key_colors(colors)
 
@@ -357,32 +390,36 @@ class HandPiano(GenesisSystem[HandPianoState, HandPianoAction, HandPianoConfig])
         _ = self._state.pressed.copy_(self._piano.state.pressed)
         _ = self._state.hit_velocity.copy_(self._piano.state.hit_velocity)
 
-    def _measure_fingertip_offsets(self) -> Float[torch.Tensor, "5 3"]:
+    def _measure_fingertip_offsets(self) -> Float[torch.Tensor, f"{NUM_FINGERS} 3"]:
         """Finds the tip of each distal link, in that link's frame.
 
         The tip is the collision vertex farthest from the link origin, which sits at the
         finger's last joint. Measured once, from environment 0.
         """
-        pos = self._hand.get_links_pos(self._fingertip_links).reshape(-1, 5, 3)[0]
-        quat = self._hand.get_links_quat(self._fingertip_links).reshape(-1, 5, 4)[0]
-        offsets = []
+        pos, quat = self._fingertip_link_poses()
+        offsets: list[torch.Tensor] = []
         for i, link in enumerate(self._fingertip_links):
-            verts = self._hand.links[link].get_verts().reshape(-1, self._hand.links[link].n_verts, 3)[0]
-            local = gu.transform_by_quat(verts - pos[i], gu.inv_quat(quat[i]).expand(len(verts), 4))
+            n_verts = self._hand.links[link].n_verts
+            verts = torch.as_tensor(self._hand.links[link].get_verts())
+            verts = verts.reshape(-1, n_verts, 3)[0]
+            inverse = torch.as_tensor(gu.inv_quat(quat[0, i])).expand(n_verts, 4)
+            local = torch.as_tensor(gu.transform_by_quat(verts - pos[0, i], inverse))
             offsets.append(local[local.norm(dim=-1).argmax()])
         return torch.stack(offsets)
 
-    def _fingertip_positions(self) -> Float[torch.Tensor, "envs 5 3"]:
+    def _fingertip_positions(self) -> Float[torch.Tensor, f"envs {NUM_FINGERS} 3"]:
         """World-frame fingertip positions in every environment."""
-        pos = self._hand.get_links_pos(self._fingertip_links).reshape(-1, 5, 3)
-        quat = self._hand.get_links_quat(self._fingertip_links).reshape(-1, 5, 4)
-        return pos + gu.transform_by_quat(self._fingertip_offsets.expand_as(pos), quat)
+        pos, quat = self._fingertip_link_poses()
+        offsets = self._fingertip_offsets.expand_as(pos)
+        return pos + torch.as_tensor(gu.transform_by_quat(offsets, quat))
 
-
-def _rotvec_to_quat(rotvec: Float[torch.Tensor, "*batch 3"]) -> Float[torch.Tensor, "*batch 4"]:
-    """Converts rotation vectors to (w, x, y, z) quaternions, including zero rotations."""
-    angle = rotvec.norm(dim=-1, keepdim=True)
-    half = 0.5 * angle
-    # sin(half) / angle tends to 1/2 as the angle goes to zero.
-    scale = torch.where(angle > 1e-8, half.sin() / angle.clamp_min(1e-8), 0.5)
-    return torch.cat([half.cos(), scale * rotvec], dim=-1)
+    def _fingertip_link_poses(
+        self,
+    ) -> tuple[
+        Float[torch.Tensor, f"envs {NUM_FINGERS} 3"],
+        Float[torch.Tensor, f"envs {NUM_FINGERS} 4"],
+    ]:
+        """Position and orientation of each finger's distal link, per environment."""
+        pos = torch.as_tensor(self._hand.get_links_pos(self._fingertip_links))
+        quat = torch.as_tensor(self._hand.get_links_quat(self._fingertip_links))
+        return pos.reshape(-1, NUM_FINGERS, 3), quat.reshape(-1, NUM_FINGERS, 4)

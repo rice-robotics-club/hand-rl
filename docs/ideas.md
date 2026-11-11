@@ -47,8 +47,8 @@ Convert MIDI files into a chronological sequence of notes, with timestamps and
 durations in seconds. No audio processing or Fourier transform is needed.
 
 ```sh
-python -m pip install -r requirements.txt
-python -m scripts.midi_to_notes song.mid --no-octave -o notes.json
+python -m scripts.midi_to_notes song.mid -o notes.json  # [start, duration, pitch] rows
+python -m scripts.midi_to_notes song.mid --named --no-octave -o notes.json  # note names
 ```
 
 MP3 and WAV inputs are automatically transcribed to MIDI in memory before
@@ -58,8 +58,8 @@ Python environment and any globally installed TensorFlow/NumPy packages:
 
 ```sh
 uv venv --python 3.10 .venv-audio
-uv pip install --python .venv-audio/Scripts/python.exe -r requirements-audio.txt
-.venv-audio/Scripts/python.exe -m scripts.midi_to_notes song.wav --tuples -o notes.json
+uv pip install --python .venv-audio/Scripts/python.exe basic-pitch
+.venv-audio/Scripts/python.exe -m scripts.midi_to_notes song.wav -o notes.json
 ```
 
 Audio transcription is approximate. MIDI inputs skip transcription and do not
@@ -155,12 +155,12 @@ Audiveris project. Increase `--timeout` from its default 300 seconds for slow sc
 
 ### Note sequences to finger actions
 
-`notes_to_fingers.py` assigns note tuples from either converter to a stationary
+`src/music/finger_plan.py` (command: `python -m scripts.notes_to_fingers`) assigns note tuples from either converter to a stationary
 right hand. Finger numbers are 1=thumb, 2=index, 3=middle, 4=ring, 5=pinky.
 The default starting position is raised above C4, D4, E4, F4, G4 respectively.
 
 ```powershell
-.venv-audio/Scripts/python.exe -m scripts.notes_to_fingers samples/right_hand/expected.notes.json -o robot_finger_movement_plan.json
+.venv-audio/Scripts/python.exe -m scripts.notes_to_fingers data/right_hand/expected.notes.json -o data/right_hand/robot_finger_movement_plan.json
 ```
 
 The JSON includes `starting_position`, finger assignments in `notes`, and timed
@@ -180,14 +180,6 @@ and releasing. Timestamps specify when the key should sound, so physical motion
 must begin early enough to meet them. Adjacent repeated notes may require more
 release/repress time than this idealized schedule allows. Wrist movement and
 automatic fingering across a wider keyboard are not implemented yet.
-
-### RL prototype — not a physical hand model
-
-The [five-finger RL prototype](prototype_rl/README.md) trains RSL-RL PPO on
-abstract finger bends over C4–G4. It exists to test observations, rewards, and
-training before CAD or motors are defined. It has no Genesis contact physics
-or hardware control, and its checkpoints are labeled **PROTOTYPE ONLY**.
-See the linked guide for installation, training commands, and limitations.
 
 # Overall Goals / Timeline
 

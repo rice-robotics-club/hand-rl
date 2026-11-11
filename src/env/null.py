@@ -5,7 +5,6 @@ from rsl_rl.env import VecEnv
 from tensordict import TensorDict
 
 from src.config import Config
-from src.sim import VecSystem
 from src.sim.vec_system import AnyVecSystem
 
 

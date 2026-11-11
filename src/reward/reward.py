@@ -1,5 +1,6 @@
 """Reward module for computing total rewards from a list of reward terms."""
 
+import functools
 from collections.abc import Callable
 
 import torch
@@ -71,3 +72,15 @@ class RewardFunction[S: _State, A: _Action]:
             * self._weights
         )
         return self._buf.sum(dim=1)
+
+
+def bind[S: _State, A: _Action](
+    term: Callable[..., torch.Tensor], **settings: object
+) -> RewardTerm[S, A]:
+    """Fixes a term's keyword settings, keeping its name for weights and logging.
+
+    For example, `bind(note_nearness, scale=0.1)` is a term `(state, action)`. The
+    type checker can't check the settings against the term, so a misspelled setting
+    only fails when the term is first called.
+    """
+    return functools.update_wrapper(functools.partial(term, **settings), term)

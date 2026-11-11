@@ -7,6 +7,15 @@ name = "hand-rl"
 version = "0.1.0"
 description = "Rice Robotics Hand Command"
 readme = "README.md"
+authors = [
+  { name = "Clay Goldsmith", email = "cg156@rice.edu" },
+  { name = "Isabella Alvarez", email = "ia33@rice.edu" },
+  { name = "Marianna Argeiti", email = "ma312@rice.edu" },
+  { name = "Emily Zheng", email = "ez58@rice.edu" },
+  { name = "Dany Yao", email = "dy62@rice.edu" },
+  { name = "Tristan Burchett", email = "tb85@rice.edu" },
+  { name = "Justin Lopato", email = "justin@lopa.to" },
+]
 requires-python = ">=3.12"
 dependencies = [
   "numpy",
@@ -59,10 +68,18 @@ dev = [
 [tool.uv]
 override-dependencies = ["scikit-learn>=1.5", "labmaze; python_version < '0'"]
 
+[tool.ruff]
+# Ruff's default rule set changes between versions; pin it so everyone gets the same.
+required-version = ">=0.16,<0.17"
+target-version = "py312"
+line-length = 88
+extend-exclude = ["robots", "third_party", "logs", "savedlogs"]
+
 [tool.basedpyright]
 venvPath = "."
 venv = ".venv"
 extraPaths = ["robots/robopianist"]
+include = ["src", "scripts", "tests"]
 exclude = [
   "robots",
   "third_party",
@@ -72,8 +89,15 @@ exclude = [
   "**/node_modules",
   "*.egg-info",
 ]
+# "standard" checks types; on top of it, require annotations on parameters, since
+# explicit types are how we plan and read interfaces.
+typeCheckingMode = "standard"
+reportMissingParameterType = "error"
+reportUnusedImport = "error"
+reportUnusedVariable = "error"
+reportImplicitOverride = "error"
 
-# Silence diagnostics caused by untyped third-party libraries (genesis, rsl_rl, etc.)
+# Untyped third-party libraries (genesis, rsl_rl, etc.) would otherwise flood these.
 reportMissingTypeStubs = "none"
 reportUnknownMemberType = "none"
 reportUnknownVariableType = "none"

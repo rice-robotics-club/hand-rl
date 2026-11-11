@@ -1,3 +1,5 @@
+"""A simulated 88-key piano whose keys are pressed by contact with other entities."""
+
 import re
 from typing import TYPE_CHECKING, Literal, override
 
@@ -11,7 +13,8 @@ from robopianist.models.piano import piano_mjcf
 from tensordict import TypedTensorDict
 
 from src.base_config import Config
-from src.sim.piano_audio import PianoAudio, RealTimePacer
+from src.music.audio import MAX_VELOCITY, PianoAudio, RealTimePacer
+from src.music.keyboard import NUM_KEYS
 from src.sim.vec_system import ChildSystem, GenesisConfig, GenesisSystem
 
 if TYPE_CHECKING:
@@ -19,9 +22,9 @@ if TYPE_CHECKING:
 
 
 class PianoState(TypedTensorDict):
-    pressed: Float[torch.Tensor, "*batch 88"]
+    pressed: Float[torch.Tensor, f"*batch {NUM_KEYS}"]
     """The piano keys that are currently pressed, with values in [0.0, 1.0]."""
-    hit_velocity: Float[torch.Tensor, "*batch 88"]
+    hit_velocity: Float[torch.Tensor, f"*batch {NUM_KEYS}"]
     """Key speed (fraction of travel per second) on the step each key last crossed the threshold.
 
     Held until the next hit. Zero before the first hit and after reset.
@@ -71,14 +74,24 @@ class PianoConfig(Config):
     audio_gain: float = Field(default=0.5, gt=0.0, le=10.0)
     """FluidSynth output gain."""
 
+    audio_period_size: int = Field(default=1024, ge=64)
+    """Frames per FluidSynth audio buffer; each 1024 adds about 23 ms of latency.
+
+    FluidSynth's default of 64 underruns, which sounds like pulsing, on devices that
+    PipeWire runs with large buffers, such as USB audio interfaces.
+    """
+
+    audio_periods: int = Field(default=4, ge=2)
+    """Number of FluidSynth audio buffers."""
+
     full_velocity_speed: float = Field(default=20.0, gt=0.0)
-    """Key speed (fractions of travel per second) that plays at full MIDI velocity, 127.
+    """Key speed (fractions of travel per second) that plays at full MIDI velocity.
 
     20 means a key that goes all the way down in 50 ms. This is a starting guess, not a
     calibrated value; slower hits are proportionally quieter, down to min_velocity.
     """
 
-    min_velocity: int = Field(default=30, ge=1, le=127)
+    min_velocity: int = Field(default=30, ge=1, le=MAX_VELOCITY)
     """The quietest MIDI velocity played, so slow presses stay audible."""
 
     press_point_inset: float = Field(default=0.02, ge=0.0)
@@ -108,8 +121,8 @@ class Piano(ChildSystem[PianoState, None, PianoConfig]):
         )
 
         self._state: PianoState = PianoState(
-            pressed=torch.zeros((self._num_envs, 88), device=gs.device),
-            hit_velocity=torch.zeros((self._num_envs, 88), device=gs.device),
+            pressed=torch.zeros((self._num_envs, NUM_KEYS), device=gs.device),
+            hit_velocity=torch.zeros((self._num_envs, NUM_KEYS), device=gs.device),
             batch_size=self._num_envs,
             device=gs.device,
         )
@@ -131,11 +144,13 @@ class Piano(ChildSystem[PianoState, None, PianoConfig]):
                 cfg.audio_gain,
                 cfg.full_velocity_speed,
                 cfg.min_velocity,
+                cfg.audio_period_size,
+                cfg.audio_periods,
             )
             if cfg.audio_realtime:
                 self._pacer = RealTimePacer(float(parent.cfg.genesis.sim_options.dt))
 
-    def press_points(self) -> Float[torch.Tensor, "88 3"]:
+    def press_points(self) -> Float[torch.Tensor, f"{NUM_KEYS} 3"]:
         """World-frame point on each key, in key (pressed-channel) order, that a finger should strike.
 
         The piano is fixed and identical in every environment, so the points are
@@ -189,7 +204,7 @@ class Piano(ChildSystem[PianoState, None, PianoConfig]):
             color = torch.tensor(self.cfg.pressed_color, device=gs.device)
             self._draw_key_colors(pressed.unsqueeze(-1) * color)
 
-    def show_key_colors(self, colors: Float[torch.Tensor, "88 4"]):
+    def show_key_colors(self, colors: Float[torch.Tensor, f"{NUM_KEYS} 4"]):
         """Colors environment 0's keys in the viewer with RGBA colors, in key order.
 
         Keys with zero alpha are left uncolored. Calling this turns off color_pressed.
@@ -199,7 +214,7 @@ class Piano(ChildSystem[PianoState, None, PianoConfig]):
         if self._scene.viewer is not None:
             self._draw_key_colors(colors)
 
-    def _draw_key_colors(self, colors: Float[torch.Tensor, "88 4"]):
+    def _draw_key_colors(self, colors: Float[torch.Tensor, f"{NUM_KEYS} 4"]):
         """Redraws a colored box over each key with nonzero alpha in environment 0."""
         if self._drawn_colors is not None and torch.equal(colors, self._drawn_colors):
             return  # Nothing changed; skip redrawing debug geometry.

@@ -1,16 +1,15 @@
 """Generate an original right-hand exercise and independently specified expected notes.
 
-Requires requirements-sheet.txt plus verovio and resvg-py.
+Requires music21, verovio, and resvg-py (not project dependencies).
 """
 
 import json
 import xml.etree.ElementTree as ET
 from pathlib import Path
 
-import resvg_py
-import verovio
-from midi_to_notes import midi_to_note_tuples
-from music21 import (
+import resvg_py  # pyright: ignore[reportMissingImports]
+import verovio  # pyright: ignore[reportMissingImports]
+from music21 import (  # pyright: ignore[reportMissingImports]
     bar,
     chord,
     clef,
@@ -22,11 +21,13 @@ from music21 import (
     stream,
     tempo,
 )
-from sheet_music_to_notes import musicxml_to_notes
+
+from src.music.midi import midi_to_notes
+from src.music.sheet_music import musicxml_to_notes
 
 
 def main():
-    directory = Path(__file__).resolve().parent / "samples" / "right_hand"
+    directory = Path(__file__).resolve().parents[1] / "data" / "right_hand"
     directory.mkdir(parents=True, exist_ok=True)
     # Each item is (MIDI pitches, duration in quarter-note beats); [] is a rest.
     measures = [
@@ -111,7 +112,7 @@ def main():
     (directory / "right_hand.png").write_bytes(
         resvg_py.svg_to_bytes(svg_string=svg, background="white", width=3000)
     )
-    assert midi_to_note_tuples(midi_path) == expected, "MIDI differs from known notes"
+    assert midi_to_notes(midi_path) == expected, "MIDI differs from known notes"
     assert musicxml_to_notes(xml_path) == expected, "MusicXML differs from known notes"
     print(
         f"Created {directory}; verified {len(expected)} notes over {beat * 0.5:g} seconds."

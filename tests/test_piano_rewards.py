@@ -5,7 +5,13 @@ import unittest
 import torch
 
 from src.music.keyboard import NUM_KEYS, key_of
-from src.reward.piano import key_colors, nearness, score_notes
+from src.reward.piano import (
+    key_colors,
+    key_metrics,
+    key_palette,
+    nearness,
+    score_notes,
+)
 
 
 class RewardTests(unittest.TestCase):
@@ -25,9 +31,8 @@ class RewardTests(unittest.TestCase):
         self.assertGreater(result[0], result[1])
         self.assertGreater(result[1], result[2])
         self.assertEqual(result[3].item(), 0)
-        for distances in [torch.tensor([[-1.0]]), torch.tensor([[float("nan")]])]:
-            with self.assertRaises(ValueError):
-                nearness(distances, torch.ones(1, 1), 0.02)
+        with self.assertRaises(ValueError):
+            nearness(torch.zeros(1, 2), torch.ones(1, 1), 0.02)
 
     def test_correct_press_beats_hovering_and_pressing_every_key(self):
         target = torch.zeros(1, NUM_KEYS)
@@ -47,10 +52,20 @@ class KeyColorTests(unittest.TestCase):
         blue, green, red = (0, 0, 1, 1.0), (0, 1, 0, 1.0), (1, 0, 0, 1.0)
         down = torch.tensor([0.0, 1, 1, 0])
         wanted = torch.tensor([1.0, 1, 0, 0])
-        colors = key_colors(down, wanted, blue, green, red)
+        colors = key_colors(down, wanted, key_palette(blue, green, red, down.device))
         self.assertEqual(
             colors.tolist(), [list(blue), list(green), list(red), [0, 0, 0, 0]]
         )
+
+
+class KeyMetricsTests(unittest.TestCase):
+    def test_metrics_agree_with_note_counts(self):
+        target = torch.tensor([[1.0, 1, 0, 0], [0.0, 0, 0, 0], [0.0, 0, 0, 0]])
+        down = torch.tensor([[1.0, 0, 1, 0], [0.0, 0, 0, 0], [1.0, 0, 0, 0]])
+        precision, recall, f1 = key_metrics(down, target)
+        torch.testing.assert_close(precision, torch.tensor([0.5, 1.0, 0.0]))
+        torch.testing.assert_close(recall, torch.tensor([0.5, 1.0, 1.0]))
+        torch.testing.assert_close(f1, torch.tensor([0.5, 1.0, 0.0]))
 
 
 if __name__ == "__main__":

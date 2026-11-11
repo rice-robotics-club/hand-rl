@@ -1,6 +1,10 @@
 """Convert a MIDI, MP3, or WAV file to a JSON list of notes.
 
-Run from the repository root: python -m scripts.midi_to_notes song.mid -o song.notes.json
+Run from the repository root:
+    python -m scripts.midi_to_notes song.mid -o song.json            # named notes
+    python -m scripts.midi_to_notes song.mid --tuples -o song.json   # note rows
+
+Training reads the --tuples form: [start seconds, duration seconds, MIDI pitch].
 """
 
 import argparse
@@ -14,7 +18,7 @@ class Args(argparse.Namespace):
     midi_file: Path = Path()
     output: Path | None = None
     no_octave: bool = False
-    named: bool = False
+    tuples: bool = False
 
 
 def main():
@@ -22,18 +26,19 @@ def main():
     _ = parser.add_argument("midi_file", type=Path, help="MIDI, MP3, or WAV input file")
     _ = parser.add_argument("-o", "--output", type=Path, help="Save JSON to this file")
     _ = parser.add_argument(
-        "--named",
+        "--no-octave",
         action="store_true",
-        help='Output {"note", "timestamp", "duration"} objects instead of '
-        + "[start, duration, MIDI pitch] rows",
+        help="Use A instead of A4 (named output only)",
     )
     _ = parser.add_argument(
-        "--no-octave", action="store_true", help="With --named, write A instead of A4"
+        "--tuples",
+        action="store_true",
+        help="Output (start, duration, MIDI pitch) triples as JSON arrays",
     )
     args = parser.parse_args(namespace=Args())
     notes = midi_to_notes(args.midi_file)
     result = json.dumps(
-        named_notes(notes, include_octave=not args.no_octave) if args.named else notes,
+        notes if args.tuples else named_notes(notes, include_octave=not args.no_octave),
         indent=2,
     )
     if args.output:

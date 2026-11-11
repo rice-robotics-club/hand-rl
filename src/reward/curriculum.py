@@ -45,6 +45,15 @@ class Curriculum:
         progress = min(max((self.recall - self.recall_start) / span, 0.0), 1.0)
         self.progress = max(self.progress, progress)
 
+    def state_dict(self) -> dict[str, float]:
+        """What a checkpoint needs to continue the curriculum where it left off."""
+        return {"recall": self.recall, "progress": self.progress}
+
+    def load_state_dict(self, state: dict[str, float]):
+        """Continues from a state_dict, e.g. when resuming training."""
+        self.recall = state["recall"]
+        self.progress = state["progress"]
+
     def weights(self) -> dict[str, float]:
         """The reward weights at the current progress."""
         p = self.progress

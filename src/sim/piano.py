@@ -176,6 +176,29 @@ class Piano(ChildSystem[PianoState, None, PianoConfig]):
 
     @override
     def step(self, action: None):
+        was_down = self._state.pressed >= self.cfg.pressed_threshold
+        speed = self._read_keys()
+        is_down = self._state.pressed >= self.cfg.pressed_threshold
+        hit = is_down & ~was_down
+        if self._audio is not None:
+            env = self.cfg.audio_env
+            self._audio.update(hit[env], (was_down & ~is_down)[env], speed[env])
+        if self._pacer is not None:
+            self._pacer.wait()
+        if (
+            self.cfg.color_pressed
+            and not self._colored_externally
+            and self._scene.viewer is not None
+        ):
+            pressed = self._state.pressed[0] >= self.cfg.pressed_threshold
+            color = torch.tensor(self.cfg.pressed_color, device=gs.device)
+            self._draw_key_colors(pressed.unsqueeze(-1) * color)
+
+    def _read_keys(self) -> Float[torch.Tensor, f"envs {NUM_KEYS}"]:
+        """Updates pressed and hit_velocity from the simulated keys.
+
+        Returns each key's speed, in fractions of its travel per second.
+        """
         if self._key_travel is None:
             # Joint limits are only available once the parent has built the scene.
             self._key_travel = self._piano.get_dofs_limit()[1]
@@ -190,19 +213,7 @@ class Piano(ChildSystem[PianoState, None, PianoConfig]):
         _ = self._state.hit_velocity.copy_(
             torch.where(hit, speed, self._state.hit_velocity)
         )
-        if self._audio is not None:
-            env = self.cfg.audio_env
-            self._audio.update(hit[env], (was_down & ~is_down)[env], speed[env])
-        if self._pacer is not None:
-            self._pacer.wait()
-        if (
-            self.cfg.color_pressed
-            and not self._colored_externally
-            and self._scene.viewer is not None
-        ):
-            pressed = self._state.pressed[0] >= self.cfg.pressed_threshold
-            color = torch.tensor(self.cfg.pressed_color, device=gs.device)
-            self._draw_key_colors(pressed.unsqueeze(-1) * color)
+        return speed
 
     def show_key_colors(self, colors: Float[torch.Tensor, f"{NUM_KEYS} 4"]):
         """Colors environment 0's keys in the viewer with RGBA colors, in key order.
@@ -245,7 +256,9 @@ class Piano(ChildSystem[PianoState, None, PianoConfig]):
         else:
             self._state.pressed[idx] = 0
             self._state.hit_velocity[idx] = 0
-        self.step(None)
+        # Read the keys' reset positions. Unlike step, this doesn't play audio, wait for
+        # real time, or redraw key colors.
+        _ = self._read_keys()
 
 
 def _includes(idx: int | torch.Tensor | None, env: int) -> bool:

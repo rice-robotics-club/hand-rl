@@ -66,6 +66,27 @@ class FingerTargets(KeyTargets):
 # ---------------------------------------------------------------------------
 
 
+class NoteCounts(NamedTuple):
+    """How many keys fall in each category, per env."""
+
+    hits: Tensor
+    """Wanted keys that are down."""
+    misses: Tensor
+    """Wanted keys that are up."""
+    extras: Tensor
+    """Unwanted keys that are down."""
+
+
+def count_notes(key_down: Tensor, target: Tensor) -> NoteCounts:
+    """Counts hits, misses, and extra keys; (envs, keys) inputs, 1 meaning down/wanted."""
+    down, wanted = key_down.bool(), target.bool()
+    return NoteCounts(
+        hits=(down & wanted).sum(-1),
+        misses=(~down & wanted).sum(-1),
+        extras=(down & ~wanted).sum(-1),
+    )
+
+
 class NoteScore(NamedTuple):
     """How the keys that are down compare with the keys the score wants, per env."""
 
@@ -85,18 +106,15 @@ def score_notes(key_down: Tensor, target: Tensor) -> NoteScore:
     Correct and missed are fractions of the chord, so a chord counts as much as a
     single note. Rests have nothing to get right or miss, but extra keys still count.
     """
-    down, wanted = key_down.bool(), target.bool()
-    hits = (down & wanted).sum(-1)
-    misses = (~down & wanted).sum(-1)
-    extras = (down & ~wanted).sum(-1)
-    chord_size = wanted.sum(-1).clamp_min(1)
-    anything = (down | wanted).any(-1)
+    hits, misses, extras = count_notes(key_down, target)
+    chord_size = (hits + misses).clamp_min(1)
+    keys_involved = hits + misses + extras
     return NoteScore(
         correct=hits / chord_size,
         missed=misses / chord_size,
         extra=extras.float(),
         correctness=torch.where(
-            anything, hits / (hits + misses + extras).clamp_min(1), 1.0
+            keys_involved > 0, hits / keys_involved.clamp_min(1), 1.0
         ),
     )
 
@@ -111,15 +129,11 @@ def key_metrics(
 ) -> tuple[Tensor, Tensor, Tensor]:
     """Precision, recall, and F1 of the keys down against the wanted keys, per env.
 
-    With nothing wanted, recall is 1, and precision is 1 only if nothing is down.
+    Keys at or above `threshold` count as down or wanted. With nothing wanted, recall
+    is 1, and precision is 1 only if nothing is down.
     """
-    active_pressed = active >= threshold
-    goal_pressed = goal >= threshold
-
-    tp = (active_pressed & goal_pressed).sum(dim=-1).float()
-    fp = (active_pressed & ~goal_pressed).sum(dim=-1).float()
-    fn = (~active_pressed & goal_pressed).sum(dim=-1).float()
-
+    hits, misses, extras = count_notes(active >= threshold, goal >= threshold)
+    tp, fn, fp = hits.float(), misses.float(), extras.float()
     precision = torch.where(
         tp + fp > 0, tp / (tp + fp).clamp(min=1), torch.where(tp + fn == 0, 1.0, 0.0)
     )
@@ -133,37 +147,43 @@ def key_metrics(
 
 
 def nearness(distances: Tensor, target: Tensor, scale: float) -> Tensor:
-    """Mean `closeness` of the active keys to their fingers; 0 during rests."""
+    """Mean `closeness` of the active keys to their fingers; 0 during rests.
+
+    Doesn't check the distances' values, which would make the GPU wait every step.
+    """
     if distances.shape != target.shape:
         raise ValueError("Fingertip/key distances must match the target key shape")
-    if not torch.isfinite(distances).all() or (distances < 0).any():
-        raise ValueError("Fingertip/key distances must be finite and nonnegative")
     return (closeness(distances, scale) * target).sum(-1) / target.sum(-1).clamp_min(1)
 
 
+_UNCOLORED, _WANTED, _CORRECT, _WRONG = range(4)
+"""Rows of a key palette."""
+
+
+def key_palette(
+    target_color: RGBA, correct_color: RGBA, wrong_color: RGBA, device: torch.device
+) -> Float[Tensor, "4 4"]:
+    """The RGBA colors key_colors picks from; build it once, not every step."""
+    uncolored = (0.0, 0.0, 0.0, 0.0)
+    rows = [uncolored, target_color, correct_color, wrong_color]
+    return torch.tensor(rows, device=device)
+
+
 def key_colors(
-    key_down: Tensor,
-    target: Tensor,
-    target_color: RGBA,
-    correct_color: RGBA,
-    wrong_color: RGBA,
+    key_down: Tensor, target: Tensor, palette: Float[Tensor, "4 4"]
 ) -> Tensor:
     """An RGBA color per key showing what the note terms score: (..., keys, 4).
 
-    Wanted keys are target_color while up and correct_color while down; unwanted keys
-    that are down are wrong_color. Other keys are transparent.
+    Wanted keys are the palette's target color while up and its correct color while
+    down; unwanted keys that are down are its wrong color. Other keys are transparent.
     """
-    down, wanted = key_down.bool().unsqueeze(-1), target.bool().unsqueeze(-1)
-
-    def color(rgba: RGBA) -> Tensor:
-        return torch.tensor(rgba, device=key_down.device)
-
-    transparent = torch.zeros(4, device=key_down.device)
-    return torch.where(
+    down, wanted = key_down.bool(), target.bool()
+    row = torch.where(
         wanted,
-        torch.where(down, color(correct_color), color(target_color)),
-        torch.where(down, color(wrong_color), transparent),
+        torch.where(down, _CORRECT, _WANTED),
+        torch.where(down, _WRONG, _UNCOLORED),
     )
+    return palette[row]
 
 
 # ---------------------------------------------------------------------------

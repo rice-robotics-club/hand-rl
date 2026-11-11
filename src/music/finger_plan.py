@@ -9,6 +9,7 @@ from collections.abc import Sequence
 from typing import Literal, TypedDict
 
 from src.music.fingering import FINGER_NAMES, HOME_PITCHES
+from src.music.keyboard import MIDI_PITCHES
 from src.music.notes import check_notes
 
 
@@ -58,8 +59,15 @@ def notes_to_fingers(
     invalid notes, notes outside the hand position, or overlapping notes on one key.
     """
     keys = tuple(keys)
-    if len(keys) != len(FINGER_NAMES) or list(keys) != sorted(set(keys)):
-        raise ValueError("keys must contain five distinct ascending MIDI pitches")
+    if (
+        len(keys) != len(FINGER_NAMES)
+        # `type` rather than isinstance, which would accept True and False.
+        or any(type(k) is not int or k not in MIDI_PITCHES for k in keys)
+        or list(keys) != sorted(set(keys))
+    ):
+        raise ValueError(
+            "keys must contain five distinct ascending MIDI pitches (0-127)"
+        )
     checked = check_notes(notes)
     finger_of = {pitch: number for number, pitch in enumerate(keys, start=1)}
 

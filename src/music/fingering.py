@@ -4,6 +4,7 @@ Fingers are numbered 0 (thumb) to 4 (pinky); NO_FINGER (-1) means none. Distance
 are (envs, fingers, keys) tensors of meters from each fingertip to each key.
 """
 
+import functools
 import itertools
 
 import torch
@@ -43,15 +44,23 @@ def closest_fingers(
     )
 
     # Every ordering of fingers over the slots, and the total distance of each.
-    orderings = torch.tensor(
-        list(itertools.permutations(range(fingers), slots)), device=device
-    )  # (orderings, slots)
+    orderings = _orderings(fingers, slots, device)
     cost = slot_distances[:, orderings, torch.arange(slots, device=device)]
     best = (cost * slot_used.unsqueeze(1)).sum(-1).argmin(-1)
 
     slot_fingers = torch.where(slot_used, orderings[best], NO_FINGER)
     result = torch.full((envs, keys), NO_FINGER, device=device)
     return result.scatter(-1, slot_keys, slot_fingers)
+
+
+@functools.cache
+def _orderings(
+    fingers: int, slots: int, device: torch.device
+) -> Int[Tensor, "orderings slots"]:
+    """Every way to give `slots` keys distinct fingers, built once per device."""
+    return torch.tensor(
+        list(itertools.permutations(range(fingers), slots)), device=device
+    )
 
 
 def home_fingers(

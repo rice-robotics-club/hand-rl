@@ -23,6 +23,14 @@ class VecAction(ABC, TypedTensorDict):
         """
         raise NotImplementedError
 
+    @abstractmethod
+    def to_tensor(self) -> torch.Tensor:
+        """Converts this action back to one flat tensor; the inverse of from_tensor.
+
+        Lets code that works for any robot, such as reward terms, compare actions.
+        """
+        raise NotImplementedError
+
     @classmethod
     def from_(cls, action: torch.Tensor | TensorDict | Self) -> Self:
         """Converts an action to a VecAction instance."""

@@ -160,7 +160,9 @@ and moves each weight linearly from `reward_weights` to `final_reward_weights`.
 `config/piano.yaml` uses this to raise `extra_notes` (0.2 to 1.0) and
 `wrong_keys` (0 to 0.5), and to move nearness credit from any finger
 (`note_nearness`, 1.0 to 0.2) to the planned finger (`finger_nearness`, 0 to
-1.0). Progress restarts at 0 with each training run, including resumed ones.
+1.0). Checkpoints save the curriculum's recall and progress, so
+`train --resume` and `evaluate` continue with the weights training had reached;
+checkpoints from before this was saved start at 0.
 TensorBoard shows `curriculum/note_recall` and `curriculum/progress`, plus
 `notes/precision`, `notes/recall`, and `notes/f1` for the keys down at the
 last step (recall is 1 during rests); logged

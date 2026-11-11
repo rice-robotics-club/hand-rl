@@ -124,6 +124,11 @@ class HandPianoAction(VecAction):
             batch_size=tensor.shape[:-1],
         )
 
+    @override
+    def to_tensor(self) -> Float[torch.Tensor, f"*batch {NUM_ACTIONS}"]:
+        """The base offsets, then the joint offsets, as one tensor."""
+        return torch.cat([self.base_pose, self.joint_positions], dim=-1)
+
 
 class HandPianoSystem(VecSystem[HandPianoState, HandPianoAction, Config], Protocol):
     """What HandPianoEnv needs from a hand-and-piano system, simulated or real.
@@ -338,7 +343,7 @@ class HandPiano(GenesisSystem[HandPianoState, HandPianoAction, HandPianoConfig])
         """Steps the simulation forward by one timestep."""
         action = HandPianoAction.from_(action)
         # Policies sample from an unbounded Gaussian, so clip to the normalized range.
-        actions = torch.cat([action.base_pose, action.joint_positions], dim=-1)
+        actions = action.to_tensor()
         smoothed = self._state.target_offsets
         _ = smoothed.lerp_(actions.clamp(-1.0, 1.0), self.cfg.action_smoothing)
         offsets = self._action_scales * smoothed

@@ -231,6 +231,21 @@ class HandPianoEnv(VecEnv):
             rate=cfg.curriculum_rate,
         )
         self._recall = RecallTracker(self.num_envs, self.device)
+        self._palette = piano.key_palette(
+            cfg.target_color, cfg.correct_color, cfg.wrong_color, self.device
+        )
+
+    def checkpoint_state(self) -> dict[str, object]:
+        """Training state to save in checkpoints: the curriculum's progress."""
+        return {"curriculum": self.curriculum.state_dict()}
+
+    def load_checkpoint_state(self, state: dict[str, object]) -> None:
+        """Continues from checkpoint_state, and sets the reward weights to match."""
+        curriculum = state["curriculum"]
+        if not isinstance(curriculum, dict):
+            raise TypeError("A checkpoint's curriculum state must be a dict")
+        self.curriculum.load_state_dict(curriculum)
+        self._reward.set_weights(self.curriculum.weights())
 
     def _score_time(self) -> Tensor:
         """Each environment's position in its score, in seconds, as (envs, 1).
@@ -345,10 +360,6 @@ class HandPianoEnv(VecEnv):
         if self.cfg.color_correctness:
             self._system.show_key_colors(
                 piano.key_colors(
-                    state.key_down[0],
-                    state.target_active[0],
-                    self.cfg.target_color,
-                    self.cfg.correct_color,
-                    self.cfg.wrong_color,
+                    state.key_down[0], state.target_active[0], self._palette
                 )
             )

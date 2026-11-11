@@ -64,6 +64,11 @@ class RukaAction(VecAction):
         """Converts a tensor to a RukaAction instance."""
         return cls(joint_angles=tensor, batch_size=tensor.shape[:-1])
 
+    @override
+    def to_tensor(self) -> Float[torch.Tensor, f"*batch {NUM_DOFS}"]:
+        """The joint angle offsets, which are already one tensor."""
+        return self.joint_angles
+
 
 class RukaSimConfig(GenesisConfig):
     class_name: Literal["src.sim.ruka_sim:RukaSim"]

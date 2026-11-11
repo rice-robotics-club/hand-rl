@@ -16,6 +16,7 @@ renaming, or changing the type of a field or member on any of these:
 - Environment state types (`HandPianoEnvState`) and the shared reward state types in
   `src/reward/` (`KeyTargets`, `FingerTargets`, `MotionState`).
 - `RewardFunction` and `RewardTerm` in `src/reward/reward.py`.
+- `CheckpointedEnv` and the runners in `src/util/run.py`.
 
 Config fields, private helpers, and new reward terms that only read existing fields
 don't need a prompt.

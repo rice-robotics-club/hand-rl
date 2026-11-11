@@ -47,8 +47,7 @@ Convert MIDI files into a chronological sequence of notes, with timestamps and
 durations in seconds. No audio processing or Fourier transform is needed.
 
 ```sh
-python -m scripts.midi_to_notes song.mid -o notes.json  # [start, duration, pitch] rows
-python -m scripts.midi_to_notes song.mid --named --no-octave -o notes.json  # note names
+python -m scripts.midi_to_notes song.mid --no-octave -o notes.json
 ```
 
 MP3 and WAV inputs are automatically transcribed to MIDI in memory before
@@ -59,7 +58,7 @@ Python environment and any globally installed TensorFlow/NumPy packages:
 ```sh
 uv venv --python 3.10 .venv-audio
 uv pip install --python .venv-audio/Scripts/python.exe basic-pitch
-.venv-audio/Scripts/python.exe -m scripts.midi_to_notes song.wav -o notes.json
+.venv-audio/Scripts/python.exe -m scripts.midi_to_notes song.wav --tuples -o notes.json
 ```
 
 Audio transcription is approximate. MIDI inputs skip transcription and do not

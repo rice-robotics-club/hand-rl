@@ -1,6 +1,8 @@
 import json
 import unittest
+from collections.abc import Sequence
 from pathlib import Path
+from typing import cast
 
 from src.music.finger_plan import notes_to_fingers
 
@@ -63,8 +65,15 @@ class FingerPlannerTests(unittest.TestCase):
         ):
             with self.subTest(row=row), self.assertRaises(ValueError):
                 notes_to_fingers([row])
-        with self.assertRaises(ValueError):
-            notes_to_fingers([], keys=(60, 60, 64, 65, 67))
+        bad_keys: list[Sequence[int]] = [
+            (60, 60, 64, 65, 67),  # Repeated.
+            (60, 62, 64, 65, 200),  # Not a MIDI pitch.
+            cast(Sequence[int], (60.0, 62, 64, 65, 67)),  # Not an integer, on purpose.
+            (60, 62, 64, 65),  # Too few.
+        ]
+        for keys in bad_keys:
+            with self.subTest(keys=keys), self.assertRaises(ValueError):
+                notes_to_fingers([], keys=keys)
         self.assertEqual(notes_to_fingers([])["events"], [])
 
 

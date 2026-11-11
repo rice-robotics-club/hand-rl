@@ -7,9 +7,8 @@ from src.util.run import (
     build_env,
     build_runner,
     build_system,
+    find_checkpoint,
     get_config,
-    latest_checkpoint,
-    latest_run,
     setup_logging,
 )
 
@@ -58,8 +57,9 @@ def main():
     if args.checkpoint:
         checkpoint = Path(args.checkpoint)
     else:
-        log_dir = Path(args.log_dir or f"logs/{cfg.runner.run_name}")
-        checkpoint = latest_checkpoint(latest_run(log_dir))
+        checkpoint = find_checkpoint(
+            Path(args.log_dir or f"logs/{cfg.runner.run_name}")
+        )
     print(f"Loading checkpoint: {checkpoint}")
 
     cfg.system.num_envs = args.num_envs

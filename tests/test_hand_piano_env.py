@@ -254,6 +254,20 @@ class TaskTests(unittest.TestCase):
         self.assertEqual(extras["log"]["curriculum/progress"], 1.0)
         self.assertEqual(env.curriculum.weights()["extra_notes"], 2)
 
+    def test_checkpoint_state_restores_curriculum_and_weights(self):
+        final = ALL_WEIGHTS | {"extra_notes": 2}
+        trained, _ = self.make_env(final_reward_weights=final)
+        trained.curriculum.recall, trained.curriculum.progress = 0.9, 1.0
+        resumed, system = self.make_env(final_reward_weights=final)
+        resumed.load_checkpoint_state(trained.checkpoint_state())
+        self.assertEqual(resumed.curriculum.progress, 1.0)
+        self.assertEqual(resumed.curriculum.recall, 0.9)
+        # The final weights apply right away: C4 is wanted, C#4 costs 2 instead of 1.
+        press = torch.zeros(NUM_ENVS, NUM_KEYS)
+        press[:, [C4, CSHARP4]] = 1
+        _, reward, _, _ = step(resumed, system, press)
+        self.assertEqual(reward.tolist(), [-0.25, -0.25])
+
     def test_bad_config_is_rejected(self):
         for kwargs in [
             {"nearness_scale": 0},

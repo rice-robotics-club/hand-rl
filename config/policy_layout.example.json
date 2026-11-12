@@ -1,0 +1,16 @@
+{
+  "num_actions": 27,
+  "observation_sizes": {
+    "position": 3,
+    "velocity": 3,
+    "orientation": 4,
+    "joint_positions": 21,
+    "pressed": 88,
+    "target_active": 88,
+    "target_remaining": 88,
+    "next_note_valid": 88,
+    "next_note_time": 88,
+    "next_note_duration": 88,
+    "note_correctness": 1
+  }
+}

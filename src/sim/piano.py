@@ -67,7 +67,9 @@ class Piano(ChildSystem[PianoState, None, PianoConfig]):
             batch_size=self._num_envs,
             device=gs.device,
         )
+
         self._key_travel: torch.Tensor | None = None
+        self._key_positions: torch.Tensor | None = None
         self._highlights: list[object] = []
 
     @property
@@ -80,6 +82,16 @@ class Piano(ChildSystem[PianoState, None, PianoConfig]):
     @override
     def state(self) -> PianoState:
         return self._state
+
+    @property
+    def key_positions(self) -> torch.Tensor:
+        """(88, 3) world-frame center of each key's top face."""
+        if self._key_positions is None:
+            boxes = torch.stack([key.get_AABB()[0] for key in self._keys])  # (88, 2, 3)
+            centers = (boxes[:, 0] + boxes[:, 1]) / 2
+            centers[:, 2] = boxes[:, 1, 2]
+            self._key_positions = centers
+        return self._key_positions
 
     @override
     def step(self, action: None):

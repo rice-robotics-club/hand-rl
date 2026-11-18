@@ -12,7 +12,7 @@ def targets(
 ) -> dict[str, torch.Tensor]:
     """Score.targets for one score, sampled at each of `times` (one env per time)."""
     score = Score.from_notes(notes, pitches, "cpu")
-    time = torch.tensor(times, dtype=torch.float64).unsqueeze(-1)
+    time = torch.tensor(times, dtype=torch.float32).unsqueeze(-1)
     return score.targets(time, len(pitches))
 
 

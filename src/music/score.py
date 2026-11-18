@@ -19,9 +19,9 @@ class Score:
     """
 
     start: Float[Tensor, " notes"]
-    """Seconds (float64, so onsets are not rounded)."""
+    """Seconds (float32)."""
     duration: Float[Tensor, " notes"]
-    """Seconds (float64)."""
+    """Seconds (float32)."""
     key: Int[Tensor, " notes"]
     """Key index into the keyboard's pitch list."""
 
@@ -45,7 +45,7 @@ class Score:
             next_note_time: Seconds until that next note starts.
             next_note_duration: How long that next note lasts.
         """
-        time = time.to(torch.float64)
+        time = time.to(torch.float32)
         num_envs = time.shape[0]
         key = self.key.expand(num_envs, -1)  # (envs, notes)
 
@@ -57,7 +57,7 @@ class Score:
             return out.scatter_reduce(-1, key, values, reduce)
 
         sounding = (self.start <= time) & (time < self.end)
-        active = per_key(sounding.double(), "amax", 0)
+        active = per_key(sounding.float(), "amax", 0)
         remaining = per_key(torch.where(sounding, self.end - time, 0), "amax", 0)
 
         upcoming = self.start > time
@@ -90,11 +90,11 @@ class Score:
         key_of = {pitch: key for key, pitch in enumerate(pitches)}
         return cls(
             start=torch.tensor(
-                [start for start, _, _ in checked], dtype=torch.float64, device=device
+                [start for start, _, _ in checked], dtype=torch.float32, device=device
             ),
             duration=torch.tensor(
                 [duration for _, duration, _ in checked],
-                dtype=torch.float64,
+                dtype=torch.float32,
                 device=device,
             ),
             key=torch.tensor(

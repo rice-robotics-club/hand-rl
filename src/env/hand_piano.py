@@ -252,7 +252,7 @@ class HandPianoEnv(VecEnv):
 
         Negative during the lead-in.
         """
-        episode_time = self.episode_length_buf.to(torch.float64) * self._dt
+        episode_time = self.episode_length_buf.to(torch.float32) * self._dt
         return (episode_time - self.cfg.lead_in_seconds).unsqueeze(-1)
 
     def state_at(

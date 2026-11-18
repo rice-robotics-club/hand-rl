@@ -40,7 +40,7 @@ def main():
         checkpoint = find_checkpoint(Path(args.resume))
         print(f"Resuming from checkpoint: {checkpoint}")
         # Loads the policy, critic, optimizer, iteration count, and environment state.
-        _ = runner.load(str(checkpoint))
+        _ = runner.load(str(checkpoint), map_location=str(env.device))
     runner.learn(num_learning_iterations=1000, init_at_random_ep_len=True)
 
 

@@ -1059,10 +1059,17 @@
           "type": "string"
         },
         "notes_path": {
-          "default": "data/right_hand/expected.notes.json",
-          "description": "JSON list of [start seconds, duration seconds, MIDI pitch] to play; relative to\nthe working directory.",
-          "title": "Notes Path",
-          "type": "string"
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "JSON list of [start seconds, duration seconds, MIDI pitch] to play; relative to\nthe working directory. None plays random notes instead (see the rand fields).\n\nLeave this out of the config file. The train and evaluate scripts set it from\ntheir --notes flag. A fixed score is for evaluating, and random notes are for\ntraining, so a policy can't memorize one score.",
+          "title": "Notes Path"
         },
         "lead_in_seconds": {
           "default": 0.5,
@@ -1089,7 +1096,7 @@
             }
           ],
           "default": null,
-          "description": "Control steps per episode; None fits the lead-in, the score, and the tail.",
+          "description": "Control steps per episode.\n\nWith a notes file, None fits the lead-in, the score, and the tail. With random\nnotes, there is no score to fit, so this must be set.",
           "title": "Max Episode Length"
         },
         "pressed_threshold": {
@@ -1109,6 +1116,55 @@
           "minItems": 5,
           "title": "Finger Pitches",
           "type": "array"
+        },
+        "min_rand_notes": {
+          "default": 1,
+          "description": "Fewest notes in a set that start together.",
+          "minimum": 1,
+          "title": "Min Rand Notes",
+          "type": "integer"
+        },
+        "max_rand_notes": {
+          "default": 3,
+          "description": "Most notes in a set that start together. The eval score's chords have 3.\n\nAt most one per finger. Raise that limit when there are more hands.",
+          "minimum": 1,
+          "title": "Max Rand Notes",
+          "type": "integer"
+        },
+        "note_closeness": {
+          "default": 3.0,
+          "description": "Std in keys of how far a set's notes sit from the set's center key.\n\nSmall packs the notes together. Large spreads them over the keyboard. The\ncenter itself is uniform over all 88 keys. The eval score spans 8 keys.",
+          "exclusiveMinimum": 0,
+          "title": "Note Closeness",
+          "type": "number"
+        },
+        "min_rand_hold_seconds": {
+          "default": 0.5,
+          "description": "Shortest a single note is held. Each note draws its own hold time.",
+          "exclusiveMinimum": 0,
+          "title": "Min Rand Hold Seconds",
+          "type": "number"
+        },
+        "max_rand_hold_seconds": {
+          "default": 2.0,
+          "description": "Longest a single note is held. The defaults match the eval score.",
+          "exclusiveMinimum": 0,
+          "title": "Max Rand Hold Seconds",
+          "type": "number"
+        },
+        "min_rand_rest_seconds": {
+          "default": 0.0,
+          "description": "Shortest silence between the end of a set and the start of the next one.",
+          "minimum": 0,
+          "title": "Min Rand Rest Seconds",
+          "type": "number"
+        },
+        "max_rand_rest_seconds": {
+          "default": 0.5,
+          "description": "Longest silence between the end of a set and the start of the next one.",
+          "minimum": 0,
+          "title": "Max Rand Rest Seconds",
+          "type": "number"
         },
         "nearness_scale": {
           "default": 0.02,
@@ -1811,7 +1867,7 @@
           "type": "boolean"
         },
         "soundfont_path": {
-          "default": "/home/lopatoj/Projects/hand-rl/robots/robopianist/robopianist/soundfonts/TimGM6mb.sf2",
+          "default": "/Users/clay/Projects/School/Robotics/2627/hand/hand-rl/robots/robopianist/robopianist/soundfonts/TimGM6mb.sf2",
           "description": "The SoundFont (.sf2) used for the piano sound; defaults to robopianist's.",
           "title": "Soundfont Path",
           "type": "string"

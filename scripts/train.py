@@ -11,10 +11,15 @@ from src.util.run import (
     setup_logging,
 )
 
+# Import after src.util.run: it installs warning filters that rsl_rl needs first.
+# isort: split
+from src.env.hand_piano import HandPianoEnvConfig
+
 
 class Args(argparse.Namespace):
     config: str = "config/piano.yaml"
     resume: str | None = None
+    notes: str | None = None
 
 
 def main():
@@ -28,11 +33,25 @@ def main():
         + "prefix (e.g. logs/piano), or a directory of runs, using the latest "
         + "checkpoint of the latest matching run. Logs go to a new run directory.",
     )
+    _ = parser.add_argument(
+        "--notes",
+        type=str,
+        default=None,
+        help="Train on this one fixed score (a notes JSON file). Without it, the "
+        + "environment plays random notes, which is what you want for a policy "
+        + "that generalizes.",
+    )
     args: Args = parser.parse_args(namespace=Args())
 
     setup_logging()
 
     cfg = get_config(args.config)
+    if args.notes is not None:
+        # The path is a per-run choice, not a property of the config, so it comes from
+        # the command line. Same pattern as evaluate.py's cfg.system overrides.
+        if not isinstance(cfg.env, HandPianoEnvConfig):
+            parser.error("--notes only works with the HandPiano environment")
+        cfg.env.notes_path = args.notes
     sim = build_system(cfg)
     env = build_env(cfg, sim)
     runner = build_runner(cfg, env, log_dir=new_run_dir(cfg))

@@ -12,6 +12,10 @@ from src.util.run import (
     setup_logging,
 )
 
+# Import after src.util.run: it installs warning filters that rsl_rl needs first.
+# isort: split
+from src.env.hand_piano import HandPianoEnvConfig
+
 
 class Args(argparse.Namespace):
     config: str = "config/piano.yaml"
@@ -21,6 +25,7 @@ class Args(argparse.Namespace):
     episodes: int = 5
     headless: bool = False
     audio: bool = False
+    notes: str | None = None
 
 
 def main():
@@ -48,11 +53,24 @@ def main():
         action="store_true",
         help="Play environment 0's key presses out loud, in real time.",
     )
+    _ = parser.add_argument(
+        "--notes",
+        type=str,
+        default=None,
+        help="Play this fixed score (a notes JSON file), e.g. "
+        + "data/right_hand/expected.notes.json. Without it, the environment plays "
+        + "random notes, the same as in training.",
+    )
     args: Args = parser.parse_args(namespace=Args())
 
     setup_logging()
 
     cfg = get_config(args.config)
+    if args.notes is not None:
+        # Evaluating on a fixed score is the main reason this flag exists.
+        if not isinstance(cfg.env, HandPianoEnvConfig):
+            parser.error("--notes only works with the HandPiano environment")
+        cfg.env.notes_path = args.notes
 
     if args.checkpoint:
         checkpoint = Path(args.checkpoint)

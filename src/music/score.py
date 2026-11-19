@@ -13,24 +13,32 @@ from src.music.notes import check_notes
 
 @dataclass
 class Score:
-    """A score's notes as (notes,) tensors.
+    """A score's notes as (notes,) tensors, or (envs, notes) for one score per env.
 
     Keys are indices into the keyboard's pitch list, not MIDI pitches.
+
+    The per-env form is for random notes (see src/music/random_notes.py). Each env
+    pads its row to the same width with start = inf and duration = 0. The math in
+    `targets` is elementwise against each env's time, so it needs no changes. That
+    is why this class is shared and not copied.
     """
 
-    start: Float[Tensor, " notes"]
+    start: Float[Tensor, "*envs notes"]
     """Seconds (float32)."""
-    duration: Float[Tensor, " notes"]
+    duration: Float[Tensor, "*envs notes"]
     """Seconds (float32)."""
-    key: Int[Tensor, " notes"]
+    key: Int[Tensor, "*envs notes"]
     """Key index into the keyboard's pitch list."""
 
     @property
-    def end(self) -> Float[Tensor, " notes"]:
+    def end(self) -> Float[Tensor, "*envs notes"]:
         return self.start + self.duration
 
     def length(self) -> float:
-        """Seconds until the last note ends; 0 for an empty score."""
+        """Seconds until the last note ends; 0 for an empty score.
+
+        For a fixed score only. A per-env score with padding returns inf.
+        """
         return self.end.max().item() if len(self.end) else 0.0
 
     def targets(

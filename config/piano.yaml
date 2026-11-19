@@ -53,8 +53,17 @@ runner:
     obs_normalization: true
 env:
   class_name: src.env.hand_piano:HandPianoEnv
-  notes_path: data/right_hand/expected.notes.json
-  max_episode_length: null # Derive from the score plus preparation/release time.
+  # notes_path is not set here. Pass --notes to scripts/train.py or scripts/evaluate.py to
+  # play a fixed score. Without it the environment plays random notes (see the rand
+  # settings below), which keeps the policy from memorizing one score.
+  max_episode_length: 600 # 10 s at 60 control steps per second. Must be set for random notes. Fits the eval score (9 s with lead-in and tail).
+  min_rand_notes: 1
+  max_rand_notes: 3
+  note_closeness: 3.0 # Std in keys of a set's notes around its center.
+  min_rand_hold_seconds: 0.5
+  max_rand_hold_seconds: 2.0
+  min_rand_rest_seconds: 0.0
+  max_rand_rest_seconds: 0.5
   lead_in_seconds: 0.5
   release_tail_seconds: 0.5
   pressed_threshold: 0.5

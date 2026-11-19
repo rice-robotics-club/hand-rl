@@ -281,5 +281,91 @@ class TaskTests(unittest.TestCase):
                 )
 
 
+class RandomNotesTaskTests(unittest.TestCase):
+    """The same env with no notes file: notes are drawn as the episode runs."""
+
+    @override
+    def setUp(self):
+        torch.manual_seed(0)
+
+    def make_env(
+        self, dt: float = 0.25, **overrides: Any
+    ) -> tuple[HandPianoEnv, FakeSystem]:
+        system = FakeSystem(dt=dt)
+        values: dict[str, Any] = {"lead_in_seconds": 0, "max_episode_length": 8}
+        cfg = HandPianoEnvConfig(
+            class_name="src.env.hand_piano:HandPianoEnv", **(values | overrides)
+        )
+        return HandPianoEnv(system, cfg), system
+
+    def test_needs_an_episode_length(self):
+        with self.assertRaisesRegex(ValueError, "max_episode_length"):
+            self.make_env(max_episode_length=None)
+
+    def test_notes_are_random_and_never_run_out(self):
+        env, system = self.make_env()
+        seen: set[tuple[int, ...]] = set()
+        for _ in range(60):  # Several episodes' worth.
+            obs, _, _, _ = step(env, system, torch.zeros(NUM_ENVS, NUM_KEYS))
+            wanted = obs["target_active"]
+            self.assertTrue((wanted.sum(-1) <= 3).all())
+            seen.add(tuple(wanted[0].nonzero().flatten().tolist()))
+            # One set is always known ahead of time.
+            self.assertTrue((obs["next_note_valid"].sum(-1) >= 1).all())
+        self.assertGreater(len(seen), 5)
+
+    def test_envs_get_different_notes(self):
+        env, _ = self.make_env()
+        score = env._current_score()  # pyright: ignore[reportPrivateUsage]
+        self.assertFalse(torch.equal(score.key[0], score.key[1]))
+
+    def test_time_limit_is_bootstrapped(self):
+        env, system = self.make_env()
+        env.episode_length_buf[:] = torch.tensor([env.max_episode_length - 1, 0])
+        _, _, done, extras = step(env, system, torch.zeros(NUM_ENVS, NUM_KEYS))
+        self.assertEqual(done.tolist(), [True, False])
+        self.assertEqual(extras["time_outs"].tolist(), [True, False])
+
+    def test_reset_gives_new_notes_to_the_finished_env_only(self):
+        env, system = self.make_env()
+        before = env._current_score()  # pyright: ignore[reportPrivateUsage]
+        keys, starts = before.key.clone(), before.start.clone()
+        env.episode_length_buf[:] = torch.tensor([env.max_episode_length - 1, 0])
+        step(env, system, torch.zeros(NUM_ENVS, NUM_KEYS))
+        after = env._current_score()  # pyright: ignore[reportPrivateUsage]
+        self.assertEqual(system.reset_indices, [[0]])
+        self.assertFalse(
+            torch.equal(after.key[0], keys[0])
+            and torch.equal(after.start[0], starts[0])
+        )
+
+    def test_first_observation_catches_up_to_a_random_start_time(self):
+        # train.py sets episode_length_buf to a random value before the first
+        # get_observations. The notes must match that time, not time 0.
+        env, _ = self.make_env(max_episode_length=400)
+        env.episode_length_buf[:] = torch.tensor([300, 150])
+        obs = env.get_observations()
+        window = env._current_score()  # pyright: ignore[reportPrivateUsage]
+        now = env._score_time()  # pyright: ignore[reportPrivateUsage]
+        onsets = window.start.reshape(NUM_ENVS, 2, -1)[:, :, 0]
+        self.assertTrue((onsets[:, 0] <= now[:, 0]).all())
+        self.assertTrue((onsets[:, 1] > now[:, 0]).all())
+        self.assertTrue((obs["next_note_valid"].sum(-1) >= 1).all())
+
+    def test_bad_random_config_is_rejected(self):
+        for kwargs in [
+            {"min_rand_notes": 3, "max_rand_notes": 2},
+            {"max_rand_notes": NUM_FINGERS + 1},
+            {"min_rand_hold_seconds": 3.0},
+            {"min_rand_rest_seconds": 1.0},
+            {"note_closeness": 0},
+            {"min_rand_hold_seconds": 0},
+        ]:
+            with self.subTest(kwargs=kwargs), self.assertRaises(ValueError):
+                HandPianoEnvConfig(
+                    class_name="src.env.hand_piano:HandPianoEnv", **kwargs
+                )
+
+
 if __name__ == "__main__":
     unittest.main()
